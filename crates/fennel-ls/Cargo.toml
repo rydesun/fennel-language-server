@@ -1,0 +1,13 @@
+[package]
+name = "fennel-ls"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+dashmap = "5.3.4"
+fennel-parser = { path = "../fennel-parser" }
+ropey = "1.5.0"
+serde = "1.0.144"
+serde_json = "1.0.85"
+tokio = { version = "1.20.1", features = ["full"] }
+tower-lsp = "0.17.0"

@@ -1,0 +1,17 @@
+[
+"list",
+"sym",
+"gensym",
+"list?",
+"sym?",
+"table?",
+"sequence?",
+"varg?",
+"multi-sym?",
+"comment?",
+"view",
+"get-scope",
+"assert-compile",
+"in-scope?",
+"macroexpand",
+]

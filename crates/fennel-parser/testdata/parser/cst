@@ -1,0 +1,35 @@
+ROOT@0..19
+  WHITESPACE@0..1 " "
+  N_SEXP@1..18
+    N_LIST@1..18
+      L_PAREN@1..2 "("
+      N_SUBLIST@2..17
+        N_LOCAL@2..17
+          KEYWORD_LOCAL@2..7 "local"
+          WHITESPACE@7..8 " "
+          N_ASSIGN_PAIR@8..17
+            N_ASSIGN_PATTERN@8..9
+              N_L_SYMBOL@8..9
+                SYMBOL@8..9 "x"
+            WHITESPACE@9..10 " "
+            N_SEXP@10..17
+              N_LIST@10..17
+                L_PAREN@10..11 "("
+                N_SUBLIST@11..16
+                  N_OPERATION@11..16
+                    OPERATOR@11..12 "+"
+                    WHITESPACE@12..13 " "
+                    N_ARGS@13..16
+                      N_SEXP@13..14
+                        N_ATOM@13..14
+                          N_LITERAL@13..14
+                            INTEGER@13..14 "1"
+                      WHITESPACE@14..15 " "
+                      N_SEXP@15..16
+                        N_ATOM@15..16
+                          N_LITERAL@15..16
+                            INTEGER@15..16 "2"
+                R_PAREN@16..17 ")"
+      R_PAREN@17..18 ")"
+  WHITESPACE@18..19 "\n"
+  END@19..19 ""

@@ -1,0 +1,11 @@
+[
+"coroutine",
+"debug",
+"io",
+"file",
+"math",
+"os",
+"package",
+"string",
+"table",
+]

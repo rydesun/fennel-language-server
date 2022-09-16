@@ -1,0 +1,15 @@
+newline_style = "Unix"
+max_width = 79
+use_small_heuristics = "Max"
+format_strings = true
+wrap_comments = true
+overflow_delimited_expr = true
+
+condense_wildcard_suffixes = true
+format_code_in_doc_comments = true
+group_imports = "StdExternalCrate"
+imports_granularity = "Crate"
+normalize_comments = true
+reorder_impl_items = true
+use_field_init_shorthand = true
+use_try_shorthand = true

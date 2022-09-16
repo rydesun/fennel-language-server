@@ -1,0 +1,13 @@
+[
+"and",
+"or",
+"not",
+"not=",
+"lshift",
+"rshift",
+"band",
+"bor",
+"bxor",
+"bnot",
+"length",
+]

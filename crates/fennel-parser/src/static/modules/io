@@ -1,0 +1,16 @@
+[
+"close",
+"flush",
+"input",
+"lines",
+"open",
+"output",
+"popen",
+"read",
+"stderr",
+"stdin",
+"stdout",
+"tmpfile",
+"type",
+"write",
+]
