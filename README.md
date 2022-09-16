@@ -1,5 +1,8 @@
 # fennel-ls
 
+[![Test](https://github.com/rydesun/fennel-language-server/actions/workflows/test.yaml/badge.svg)](https://github.com/rydesun/fennel-language-server/actions/workflows/test.yaml)
+[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](https://github.com/rydesun/fennel-language-server/blob/master/LICENSE)
+
 Fennel language server protocol (LSP) support.
 
 `fennel-ls` is currently in a very early stage and unreliable.
