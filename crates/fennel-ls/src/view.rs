@@ -1,5 +1,5 @@
 use fennel_parser::{models, ErrorKind};
-use tower_lsp::lsp_types::CompletionItemKind;
+use tower_lsp::lsp_types::{CompletionItemKind, DiagnosticSeverity};
 
 pub(crate) fn scope_kind(kind: models::ScopeKind) -> &'static str {
     match kind {
@@ -77,44 +77,73 @@ pub(crate) fn completion_value_kind(
     }
 }
 
-pub(crate) fn error(e: ErrorKind) -> String {
+pub(crate) fn error(e: ErrorKind) -> (String, DiagnosticSeverity) {
     match e {
-        ErrorKind::Unterminated(kind) => format!("Incomplete {}", kind),
-        ErrorKind::Unexpected(kind) => {
-            format!("Unexpected {} in input", kind)
+        ErrorKind::Unterminated(kind) => {
+            (format!("Incomplete {}", kind), DiagnosticSeverity::ERROR)
         }
-        ErrorKind::UnexpectedEof => {
-            "Unexpected end of file. Expected closing delimiter".into()
+        ErrorKind::Unexpected(kind) => (
+            format!("Unexpected {} in input", kind),
+            DiagnosticSeverity::ERROR,
+        ),
+        ErrorKind::UnexpectedEof => (
+            "Unexpected end of file. Expected closing delimiter".into(),
+            DiagnosticSeverity::ERROR,
+        ),
+        ErrorKind::EmptyList => {
+            ("Found empty list".into(), DiagnosticSeverity::ERROR)
         }
-        ErrorKind::EmptyList => "Found empty list".into(),
-        ErrorKind::DirectCall(kind) => {
-            format!("Cannot directly call value {}", kind)
+        ErrorKind::DirectCall(kind) => (
+            format!("Cannot directly call value {}", kind),
+            DiagnosticSeverity::ERROR,
+        ),
+        ErrorKind::LiteralCall(kind) => (
+            format!("Cannot call literal value {}", kind),
+            DiagnosticSeverity::ERROR,
+        ),
+        ErrorKind::GlobalConflict => {
+            ("Global conflicts with local".into(), DiagnosticSeverity::ERROR)
         }
-        ErrorKind::LiteralCall(kind) => {
-            format!("Cannot call literal value {}", kind)
+        ErrorKind::Dismatched => {
+            ("Closing delimiter is missing".into(), DiagnosticSeverity::ERROR)
         }
-        ErrorKind::GlobalConflict => "Global conflicts with local".into(),
-        ErrorKind::Dismatched => "Closing delimiter is missing".into(),
-        ErrorKind::Undefined => "Undefined identifier".into(),
-        ErrorKind::Unused => {
-            "Unused identifier. You can prefix it with a underscore".into()
+        ErrorKind::Undefined => {
+            ("Undefined identifier".into(), DiagnosticSeverity::ERROR)
         }
-        ErrorKind::MissingWhitespace => {
-            "Expected whitespace before opening delimiter".into()
+        ErrorKind::Unused => (
+            "Unused identifier. You can prefix it with a underscore".into(),
+            DiagnosticSeverity::HINT,
+        ),
+        ErrorKind::MissingWhitespace => (
+            "Expected whitespace before opening delimiter".into(),
+            DiagnosticSeverity::ERROR,
+        ),
+        ErrorKind::MacroWhitespace => {
+            ("Invalid macro".into(), DiagnosticSeverity::ERROR)
         }
-        ErrorKind::MacroWhitespace => "Invalid macro".into(),
 
-        ErrorKind::InvalidSymbol => "Invalid symbol".into(),
+        ErrorKind::InvalidSymbol => {
+            ("Invalid symbol".into(), DiagnosticSeverity::ERROR)
+        }
 
-        ErrorKind::MethodNotAllowed => "Unexpected symbol method".into(),
+        ErrorKind::MethodNotAllowed => {
+            ("Unexpected symbol method".into(), DiagnosticSeverity::ERROR)
+        }
 
         ErrorKind::FieldAndMethodNotAllowed => {
-            "Unexpected multi symbol".into()
+            ("Unexpected multi symbol".into(), DiagnosticSeverity::ERROR)
         }
-        ErrorKind::UnexpectedVarargs => {
-            "Varargs not found in parameter table".into()
-        }
-        ErrorKind::MultiCatch => "Only one catch clause permitted".into(),
-        ErrorKind::CatchNotLast => "Catch clause must be at the end".into(),
+        ErrorKind::UnexpectedVarargs => (
+            "Varargs not found in parameter table".into(),
+            DiagnosticSeverity::ERROR,
+        ),
+        ErrorKind::MultiCatch => (
+            "Only one catch clause permitted".into(),
+            DiagnosticSeverity::ERROR,
+        ),
+        ErrorKind::CatchNotLast => (
+            "Catch clause must be at the end".into(),
+            DiagnosticSeverity::ERROR,
+        ),
     }
 }

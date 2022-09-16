@@ -290,8 +290,16 @@ impl Backend {
     ) {
         let diagnostics = ast.errors().flat_map(|error| {
             lsp_range(doc, error.range).map(|range| {
-                let message = view::error(error.kind);
-                Diagnostic::new_simple(range, message)
+                let (message, severity) = view::error(error.kind);
+                Diagnostic::new(
+                    range,
+                    Some(severity),
+                    None,
+                    None,
+                    message,
+                    None,
+                    None,
+                )
             })
         });
         self.client
