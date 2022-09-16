@@ -1,2 +1,8 @@
 [workspace]
 members = ["crates/*"]
+
+[profile.release]
+lto = true
+strip = true
+codegen-units = 1
+opt-level = 3
