@@ -51,18 +51,13 @@ impl Ast {
             user_globals.insert(v.to_string());
         });
 
-        let other_errors = root
-            .provide_errors()
-            .chain(root.delimiter_whitespace_errors())
-            .collect();
-
         let mut ast = Ast {
             root: green_node,
             l_symbols: models::LSymbols::default(),
             r_symbols: vec![],
             parser_errors,
             globals_errors: vec![],
-            other_errors,
+            other_errors: vec![],
             lua_globals,
             lua_modules,
             globals: user_globals,
@@ -71,6 +66,13 @@ impl Ast {
         ast.update_symbols();
         ast.update_symbols_follow();
         ast.update_definition_errors();
+
+        let mut other_errors: Vec<Error> = root
+            .provide_errors()
+            .chain(root.delimiter_whitespace_errors())
+            .collect();
+        other_errors.extend(ast.definition_conflict_errors());
+        ast.other_errors = other_errors;
         ast
     }
 
@@ -376,6 +378,40 @@ impl Ast {
                 }
             })
             .collect()
+    }
+
+    fn definition_conflict_errors(&self) -> impl Iterator<Item = Error> + '_ {
+        self.l_symbols
+            .0
+            .iter()
+            .filter(|(_, symbol)| {
+                symbol.scope.kind == models::ScopeKind::Global
+            })
+            .map(|(_, global)| {
+                (
+                    global,
+                    self.l_symbols
+                        .range(global.token.range.start().into())
+                        .filter(|l_symbol| {
+                            l_symbol.scope.kind != models::ScopeKind::Global
+                                && l_symbol.contains_token(&global.token)
+                        }),
+                )
+            })
+            .filter_map(|(global, conflicts)| {
+                let mut conflicts = conflicts.peekable();
+                if conflicts.peek().is_some() {
+                    let mut conflicts: Vec<Error> = conflicts
+                        .map(|c| Error::new(c.token.range, GlobalConflict))
+                        .collect();
+                    conflicts
+                        .push(Error::new(global.token.range, GlobalConflict));
+                    Some(conflicts)
+                } else {
+                    None
+                }
+            })
+            .flatten()
     }
 
     fn l_symbol(&self, offset: u32) -> Option<&models::LSymbol> {
@@ -709,6 +745,24 @@ mod tests {
                 TextRange::new(20.into(), 23.into()),
                 UnexpectedVarargs,
             )]
+        );
+    }
+
+    #[test]
+    fn check_global_conflict() {
+        let text = "(local x 1) (global x 1) (local x 1)";
+        assert_eq!(
+            parse(text, HashSet::new()).errors().collect::<Vec<&Error>>(),
+            vec![
+                &Error::new(
+                    TextRange::new(7.into(), 8.into()),
+                    GlobalConflict,
+                ),
+                &Error::new(
+                    TextRange::new(20.into(), 21.into()),
+                    GlobalConflict,
+                ),
+            ]
         );
     }
 

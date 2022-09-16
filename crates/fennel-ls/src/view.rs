@@ -93,6 +93,7 @@ pub(crate) fn error(e: ErrorKind) -> String {
         ErrorKind::LiteralCall(kind) => {
             format!("Cannot call literal value {}", kind)
         }
+        ErrorKind::GlobalConflict => "Global conflicts with local".into(),
         ErrorKind::Dismatched => "Closing delimiter is missing".into(),
         ErrorKind::Undefined => "Undefined identifier".into(),
         ErrorKind::MissingWhitespace => {
