@@ -72,6 +72,7 @@ impl Ast {
             .chain(root.delimiter_whitespace_errors())
             .collect();
         other_errors.extend(ast.definition_conflict_errors());
+        other_errors.extend(ast.unused_l_symbols());
         ast.other_errors = other_errors;
         ast
     }
@@ -414,6 +415,21 @@ impl Ast {
             .flatten()
     }
 
+    fn unused_l_symbols(&self) -> impl Iterator<Item = Error> + '_ {
+        self.l_symbols.0.iter().filter_map(|(_, l_symbol)| {
+            if !l_symbol.token.text.starts_with('_')
+                && !self
+                    .r_symbols
+                    .iter()
+                    .any(|r_symbol| l_symbol.contains_token(&r_symbol.token))
+            {
+                Some(Error::new(l_symbol.token.range, Unused))
+            } else {
+                None
+            }
+        })
+    }
+
     fn l_symbol(&self, offset: u32) -> Option<&models::LSymbol> {
         self.l_symbols.get(offset)
     }
@@ -464,13 +480,20 @@ impl FindLSymbol<'_> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::{models::LSymbol, parse};
+    use crate::{models::LSymbol, parse, ErrorKind};
+
+    // Not check these
+    impl Ast {
+        fn filtered_errors(&self) -> impl Iterator<Item = &Error> {
+            self.errors().filter(|e| e.kind != ErrorKind::Unused)
+        }
+    }
 
     #[test]
     fn l_symbols() {
         let text = "(var x 1) (var [y z] [2 3])";
         let ast = parse(text, HashSet::new());
-        assert!(ast.errors().next().is_none());
+        assert!(ast.filtered_errors().next().is_none());
         let res = [
             models::LSymbol {
                 token: models::Token {
@@ -523,7 +546,7 @@ mod tests {
         let text = "(macro x [] (+))";
         let ast = parse(text, HashSet::new());
         assert_eq!(
-            ast.errors().collect::<Vec<&Error>>(),
+            ast.filtered_errors().collect::<Vec<&Error>>(),
             Vec::<&Error>::new()
         );
         let res = [models::LSymbol {
@@ -548,7 +571,7 @@ mod tests {
         let text = "(local x 1) (match 1 x 3 y 4)";
         let ast = parse(text, HashSet::new());
         assert_eq!(
-            ast.errors().collect::<Vec<&Error>>(),
+            ast.filtered_errors().collect::<Vec<&Error>>(),
             Vec::<&Error>::new()
         );
         let l_symbols = [
@@ -599,22 +622,23 @@ mod tests {
     fn check_undefined() {
         let text = "(x) (fn x [] (+))";
         let mut ast = parse(text, HashSet::new());
-        assert_eq!(ast.errors().collect::<Vec<&Error>>(), vec![&Error::new(
-            TextRange::new(1.into(), 2.into()),
-            Undefined
-        )],);
+        assert_eq!(ast.filtered_errors().collect::<Vec<&Error>>(), vec![
+            &Error::new(TextRange::new(1.into(), 2.into()), Undefined)
+        ],);
         ast.update_globals(vec!["x".to_owned()]);
-        assert_eq!(ast.errors().collect::<Vec<&Error>>(), Vec::<&Error>::new())
+        assert_eq!(
+            ast.filtered_errors().collect::<Vec<&Error>>(),
+            Vec::<&Error>::new()
+        )
     }
 
     #[test]
     fn check_undefined_fn_name() {
         let text = "(fn x.a [] (+))(fn x [] (+))";
         let ast = parse(text, HashSet::new());
-        assert_eq!(ast.errors().collect::<Vec<&Error>>(), vec![&Error::new(
-            TextRange::new(4.into(), 5.into()),
-            Undefined
-        )],);
+        assert_eq!(ast.filtered_errors().collect::<Vec<&Error>>(), vec![
+            &Error::new(TextRange::new(4.into(), 5.into()), Undefined)
+        ],);
     }
 
     #[test]
@@ -624,6 +648,16 @@ mod tests {
         assert_eq!(ast.errors().collect::<Vec<&Error>>(), vec![&Error::new(
             TextRange::new(8.into(), 11.into()),
             Undefined
+        )],);
+    }
+
+    #[test]
+    fn check_unused() {
+        let text = "(fn x [] (+)) (local _y 1)";
+        let ast = parse(text, HashSet::new());
+        assert_eq!(ast.errors().collect::<Vec<&Error>>(), vec![&Error::new(
+            TextRange::new(4.into(), 5.into()),
+            Unused,
         )],);
     }
 
@@ -649,7 +683,9 @@ mod tests {
 
         let text = "(var a {}) (var a.b 1) (var a:b 1)";
         assert_eq!(
-            parse(text, HashSet::new()).errors().collect::<Vec<&Error>>(),
+            parse(text, HashSet::new())
+                .filtered_errors()
+                .collect::<Vec<&Error>>(),
             vec![
                 &Error::new(
                     TextRange::new(16.into(), 19.into()),
@@ -685,7 +721,9 @@ mod tests {
     fn check_whitespace_error() {
         let text = "(fn x[] (+))";
         assert_eq!(
-            parse(text, HashSet::new()).errors().collect::<Vec<&Error>>(),
+            parse(text, HashSet::new())
+                .filtered_errors()
+                .collect::<Vec<&Error>>(),
             vec![&Error::new(
                 TextRange::new(5.into(), 6.into()),
                 MissingWhitespace
@@ -720,7 +758,9 @@ mod tests {
     fn check_literal_call() {
         let text = "((-)) ((var x 1)) (table) (local z :s) (z)";
         assert_eq!(
-            parse(text, HashSet::new()).errors().collect::<Vec<&Error>>(),
+            parse(text, HashSet::new())
+                .filtered_errors()
+                .collect::<Vec<&Error>>(),
             vec![
                 &Error::new(
                     TextRange::new(1.into(), 4.into()),
@@ -752,7 +792,9 @@ mod tests {
     fn check_global_conflict() {
         let text = "(local x 1) (global x 1) (local x 1)";
         assert_eq!(
-            parse(text, HashSet::new()).errors().collect::<Vec<&Error>>(),
+            parse(text, HashSet::new())
+                .filtered_errors()
+                .collect::<Vec<&Error>>(),
             vec![
                 &Error::new(
                     TextRange::new(7.into(), 8.into()),
@@ -853,7 +895,7 @@ mod tests {
     fn reference() {
         let text = "(fn xyz [] (+)) (xyz) (xyz 1)";
         let ast = parse(text, HashSet::new());
-        assert!(ast.errors().next().is_none());
+        assert!(ast.filtered_errors().next().is_none());
         assert_eq!(
             ast.reference(18),
             Some(vec![
@@ -864,7 +906,7 @@ mod tests {
         );
         let text = "(fn xyz [] (+)) (xyz) (xyz 1)";
         let ast = parse(text, HashSet::new());
-        assert_eq!(ast.errors().next(), None);
+        assert_eq!(ast.filtered_errors().next(), None);
         assert_eq!(
             ast.reference(5),
             Some(vec![

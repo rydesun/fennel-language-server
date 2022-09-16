@@ -96,6 +96,9 @@ pub(crate) fn error(e: ErrorKind) -> String {
         ErrorKind::GlobalConflict => "Global conflicts with local".into(),
         ErrorKind::Dismatched => "Closing delimiter is missing".into(),
         ErrorKind::Undefined => "Undefined identifier".into(),
+        ErrorKind::Unused => {
+            "Unused identifier. You can prefix it with a underscore".into()
+        }
         ErrorKind::MissingWhitespace => {
             "Expected whitespace before opening delimiter".into()
         }
