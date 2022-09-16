@@ -14,6 +14,11 @@ ast_assoc!(Provider, [
     BindingSymbol,
     RightSymbol,
     MatchTry,
+    RequireMacros,
+    PickArgs,
+    Global,
+    IntoClause,
+    UntilClause,
 ]);
 
 impl List {
@@ -179,6 +184,55 @@ impl MatchTry {
     }
 }
 
+impl RequireMacros {
+    pub(crate) fn depcrated(&self) -> Error {
+        Error::new(
+            self.syntax().first_token().unwrap().text_range(),
+            Depcrated("0.4.0", "import-macros"),
+        )
+    }
+}
+
+impl PickArgs {
+    pub(crate) fn depcrated(&self) -> Error {
+        Error::new(
+            self.syntax().first_token().unwrap().text_range(),
+            Depcrated("0.10.0", "pick-values"),
+        )
+    }
+}
+
+impl Global {
+    pub(crate) fn depcrated(&self) -> Error {
+        Error::new(
+            self.syntax().first_token().unwrap().text_range(),
+            Depcrated("1.1.0", "_G table"),
+        )
+    }
+}
+
+impl IntoClause {
+    pub(crate) fn depcrated(&self) -> Option<Error> {
+        let token = self.syntax().first_token().unwrap();
+        if token.text().starts_with(':') {
+            Some(Error::new(token.text_range(), Depcrated("1.2.0", "&into")))
+        } else {
+            None
+        }
+    }
+}
+
+impl UntilClause {
+    pub(crate) fn depcrated(&self) -> Option<Error> {
+        let token = self.syntax().first_token().unwrap();
+        if token.text().starts_with(':') {
+            Some(Error::new(token.text_range(), Depcrated("1.2.0", "&until")))
+        } else {
+            None
+        }
+    }
+}
+
 impl Provider {
     pub(crate) fn errors(&self) -> impl Iterator<Item = Option<Error>> {
         match self {
@@ -190,6 +244,11 @@ impl Provider {
             Self::BindingSymbol(n) => vec![n.field_and_method()].into_iter(),
             Self::RightSymbol(n) => vec![n.method_call()].into_iter(),
             Self::MatchTry(n) => n.catch().into_iter(),
+            Self::RequireMacros(n) => vec![Some(n.depcrated())].into_iter(),
+            Self::PickArgs(n) => vec![Some(n.depcrated())].into_iter(),
+            Self::Global(n) => vec![Some(n.depcrated())].into_iter(),
+            Self::IntoClause(n) => vec![n.depcrated()].into_iter(),
+            Self::UntilClause(n) => vec![n.depcrated()].into_iter(),
         }
     }
 }

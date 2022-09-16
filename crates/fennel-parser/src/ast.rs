@@ -485,7 +485,9 @@ mod tests {
     // Not check these
     impl Ast {
         fn filtered_errors(&self) -> impl Iterator<Item = &Error> {
-            self.errors().filter(|e| e.kind != ErrorKind::Unused)
+            self.errors().filter(|e| {
+                !matches!(e.kind, ErrorKind::Unused | ErrorKind::Depcrated(..))
+            })
         }
     }
 
@@ -805,6 +807,18 @@ mod tests {
                     GlobalConflict,
                 ),
             ]
+        );
+    }
+
+    #[test]
+    fn check_deprecated() {
+        let text = "(global x 1)";
+        assert_eq!(
+            parse(text, HashSet::new()).errors().next().unwrap(),
+            &Error::new(
+                TextRange::new(1.into(), 7.into()),
+                Depcrated("1.1.0", "_G table"),
+            ),
         );
     }
 

@@ -49,12 +49,15 @@ ast_node!(Collect, N_COLLECT);
 ast_node!(Accumulate, N_ACCUMULATE);
 ast_node!(ImportMacros, N_IMPORT_MACROS);
 ast_node!(RequireMacros, N_REQUIRE_MACROS);
+ast_node!(PickArgs, N_PICK_ARGS);
 ast_node!(Macro, N_MACRO);
 ast_node!(Macros, N_MACROS);
 ast_node!(EvalCompiler, N_EVAL_COMPILER);
 ast_node!(SymbolCall, N_SYMBOL_CALL);
 ast_node!(Lua, N_LUA);
 ast_node!(Macrodebug, N_MACRODEBUG);
+ast_node!(IntoClause, N_INTO_CLAUSE);
+ast_node!(UntilClause, N_UNTIL_CLAUSE);
 
 ast_assoc!(BindingSymbol, [LeftSymbol, LeftRightSymbol]);
 
