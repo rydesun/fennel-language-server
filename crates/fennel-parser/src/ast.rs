@@ -139,12 +139,16 @@ impl Ast {
         trigger: Option<String>,
     ) -> (LSymbols, Globals) {
         let root = SyntaxNode::new_root(self.root.clone());
+        let token =
+            root.token_at_offset(TextSize::from(offset)).right_biased();
+        if token.is_none() {
+            return (Box::new(vec![].into_iter()), vec![]);
+        }
+        let token = token.unwrap();
 
         if trigger.is_some() {
-            let token = root
-                .token_at_offset(TextSize::from(offset))
-                .right_biased()
-                .and_then(|n| n.prev_sibling_or_token())
+            let token = token
+                .prev_sibling_or_token()
                 .and_then(|n| n.as_node().cloned())
                 .filter(|n| nodes::RightSymbol::can_cast(n.kind()))
                 .map(|t| t.text().to_string());
@@ -174,8 +178,6 @@ impl Ast {
         }
 
         let call_position = || -> Option<bool> {
-            let token =
-                root.token_at_offset(TextSize::from(offset)).right_biased()?;
             if token.kind() == SyntaxKind::L_PAREN {
                 return Some(false);
             }
@@ -241,6 +243,20 @@ impl Ast {
                 models::CompletionKind::Operator,
                 Vec::from(include!("static/operator")),
             ));
+            if token.parent_ancestors().any(|n| {
+                [
+                    SyntaxKind::N_MACRO,
+                    SyntaxKind::N_MACROS,
+                    SyntaxKind::N_EVAL_COMPILER,
+                    SyntaxKind::N_IMPORT_MACROS,
+                ]
+                .contains(&n.kind())
+            }) {
+                globals.push((
+                    models::CompletionKind::Keyword,
+                    Vec::from(include!("static/compiler-macro")),
+                ))
+            }
         } else {
             globals.push((
                 models::CompletionKind::Keyword,
