@@ -72,14 +72,13 @@ pub(crate) trait Binding:
         // TOOD: support destructuring eval
         fallback_value_kind: models::ValueKind,
     ) -> Option<Vec<models::LSymbol>> {
-        let first_token = node.first_token()?;
-        let first_token_is_symbol =
-            LeftSymbol::can_cast(first_token.parent()?.kind());
         let scope_range = scope_extend.range(&node);
 
-        // NOTE: should not pretend symbol pairs with value
-        let value_node = node.last_child();
-        if first_token_is_symbol {
+        // Guess first child is a symbol
+        if let Some(symbol) = Symbol::cast(node.first_token()?.parent()?) {
+            let (id, _) = symbol.id()?;
+            // NOTE: should not pretend symbol pairs with value
+            let value_node = node.last_child();
             let value = if let Some(override_value_kind) = override_value_kind
             {
                 models::Value {
@@ -95,24 +94,26 @@ pub(crate) trait Binding:
                 }
             };
             return Some(vec![models::LSymbol {
-                token: first_token.into(),
+                token: id,
                 scope: models::Scope { kind: scope_kind, range: scope_range },
                 value,
             }]);
         }
 
+        // else do destructuring
         // TODO: support destructuring eval
         let value_kind = fallback_value_kind;
 
         let tokens = node
             .first_child()?
             .descendants()
-            .filter_map(LeftSymbol::cast)
-            .filter_map(|n| n.syntax().first_token());
+            .filter_map(Symbol::cast)
+            .filter_map(|n| n.id())
+            .map(|(id, _)| id);
 
         let symbols = tokens
             .map(|t| models::LSymbol {
-                token: t.into(),
+                token: t,
                 scope: models::Scope { kind: scope_kind, range: scope_range },
                 value: models::Value { kind: value_kind, range: None },
             })
@@ -532,13 +533,20 @@ impl Match {
         {
             for n in ns {
                 let node = n.syntax();
-                let token = node.first_token().unwrap();
-                if l_symbols.nearest(&token.clone().into()).is_none() {
+                let token = Symbol::cast(
+                    node.first_token().unwrap().parent().unwrap(),
+                )
+                .and_then(|n| n.id());
+                if token.is_none() {
+                    continue;
+                }
+                let token = token.unwrap().0;
+                if l_symbols.nearest(&token.clone()).is_none() {
                     let scope_range = ScopeExtend::This(p.clone()).range(node);
                     l_symbols.0.insert(
                         scope_range.start().into(),
                         models::LSymbol {
-                            token: token.into(),
+                            token,
                             scope: models::Scope {
                                 kind: models::ScopeKind::Match,
                                 range: scope_range,
@@ -552,7 +560,7 @@ impl Match {
                 } else {
                     r_symbols.push(models::RSymbol {
                         special: models::SpecialKind::Normal,
-                        token: token.into(),
+                        token,
                     });
                 }
             }
@@ -581,13 +589,20 @@ impl Catch {
         {
             for n in ns {
                 let node = n.syntax();
-                let token = node.first_token().unwrap();
-                if l_symbols.nearest(&token.clone().into()).is_none() {
+                let token = Symbol::cast(
+                    node.first_token().unwrap().parent().unwrap(),
+                )
+                .and_then(|n| n.id());
+                if token.is_none() {
+                    continue;
+                }
+                let token = token.unwrap().0;
+                if l_symbols.nearest(&token.clone()).is_none() {
                     let scope_range = ScopeExtend::This(p.clone()).range(node);
                     l_symbols.0.insert(
                         scope_range.start().into(),
                         models::LSymbol {
-                            token: token.into(),
+                            token,
                             scope: models::Scope {
                                 kind: models::ScopeKind::Catch,
                                 range: scope_range,
@@ -601,7 +616,7 @@ impl Catch {
                 } else {
                     r_symbols.push(models::RSymbol {
                         special: models::SpecialKind::Normal,
-                        token: token.into(),
+                        token,
                     });
                 }
             }
@@ -638,13 +653,20 @@ impl MatchTry {
         {
             for n in ns {
                 let node = n.syntax();
-                let token = node.first_token().unwrap();
-                if l_symbols.nearest(&token.clone().into()).is_none() {
+                let token = Symbol::cast(
+                    node.first_token().unwrap().parent().unwrap(),
+                )
+                .and_then(|n| n.id());
+                if token.is_none() {
+                    continue;
+                }
+                let token = token.unwrap().0;
+                if l_symbols.nearest(&token.clone()).is_none() {
                     let scope_range = ScopeExtend::Current.range(node);
                     l_symbols.0.insert(
                         scope_range.start().into(),
                         models::LSymbol {
-                            token: token.into(),
+                            token,
                             scope: models::Scope {
                                 kind: models::ScopeKind::MatchTry,
                                 range: scope_range,
@@ -658,7 +680,7 @@ impl MatchTry {
                 } else {
                     r_symbols.push(models::RSymbol {
                         special: models::SpecialKind::Normal,
-                        token: token.into(),
+                        token,
                     });
                 }
             }

@@ -220,12 +220,21 @@ impl<'p> Parser<'p> {
             { N_KV_PAIR ::= (COLON), (N_L_R_SYMBOL) },
 
             { N_L_SYMBOL ::= (SYMBOL) },
+            { N_L_SYMBOL ::= (COMMA),
+                             (SYMBOL) },
 
             { N_R_SYMBOL ::= (SYMBOL) },
-            { N_R_SYMBOL ::= (COMMA), (SYMBOL) }, // TODO
+            { N_R_SYMBOL ::= (COMMA),
+                             (SYMBOL) },
 
             { N_L_R_SYMBOL ::= (SYMBOL) },
+            { N_L_R_SYMBOL ::= (COMMA),
+                               (SYMBOL) },
+
             { N_L_OR_R_SYMBOL ::= (SYMBOL) },
+            { N_L_OR_R_SYMBOL ::= (COMMA),
+                                  (SYMBOL) },
+
 
             { N_KEY ::= (N_SEXP) },
 

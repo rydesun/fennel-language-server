@@ -27,6 +27,7 @@ macro_rules! ast_node {
 macro_rules! ast_assoc {
     ( $name:ident, [$($item:ident),* $(,)?] ) => {
         #[derive(Debug, Clone, PartialEq, Eq, Hash)]
+        #[allow(clippy::enum_variant_names)]
         pub(crate) enum $name {
             $($item($item),)*
         }

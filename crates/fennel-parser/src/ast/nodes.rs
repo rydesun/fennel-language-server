@@ -61,6 +61,23 @@ ast_node!(UntilClause, N_UNTIL_CLAUSE);
 
 ast_assoc!(BindingSymbol, [LeftSymbol, LeftRightSymbol]);
 
+// TODO: merge?
+ast_assoc!(Symbol, [LeftSymbol, LeftRightSymbol, LeftOrRightSymbol]);
+
+impl Symbol {
+    pub(crate) fn id(&self) -> Option<(models::Token, bool)> {
+        let mut nodes = self.syntax().children_with_tokens();
+        let first_node = nodes.next()?;
+        let first_token = first_node.as_token()?;
+        let prefix_is_comma = first_token.kind() == SyntaxKind::COMMA;
+        if prefix_is_comma {
+            Some((nodes.next()?.as_token()?.to_owned().into(), true))
+        } else {
+            Some((first_token.to_owned().into(), false))
+        }
+    }
+}
+
 impl Root {
     pub(crate) fn provide_errors(&self) -> impl Iterator<Item = Error> {
         self.syntax()
@@ -214,6 +231,7 @@ impl ReferSymbol {
             .prev_token()
             .map(|t| t.kind() == SyntaxKind::COMMA)
             .unwrap_or(false);
+        // TODO: improve syntax
         if prefix_is_comma {
             Some((nodes.next()?.as_token()?.to_owned().into(), true))
         } else if prev_is_comma {
