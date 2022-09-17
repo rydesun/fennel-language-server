@@ -1,8 +1,13 @@
-use rowan::ast::AstNode;
+use rowan::{ast::AstNode, TextRange};
 
-use super::bind::MatchAst;
 use crate::{
-    ast::{error::Provider, eval, eval::EvalAst, func, models},
+    ast::{
+        bind::MatchAst,
+        error::{Provider, Suppress, SuppressErrorKind},
+        eval,
+        eval::EvalAst,
+        func, models,
+    },
     Error,
     ErrorKind::*,
     SyntaxKind, SyntaxNode,
@@ -58,6 +63,7 @@ ast_node!(Lua, N_LUA);
 ast_node!(Macrodebug, N_MACRODEBUG);
 ast_node!(IntoClause, N_INTO_CLAUSE);
 ast_node!(UntilClause, N_UNTIL_CLAUSE);
+ast_node!(MacroQuote, N_MACRO_QUOTE);
 
 ast_assoc!(BindingSymbol, [LeftSymbol, LeftRightSymbol]);
 
@@ -85,6 +91,15 @@ impl Root {
             .filter_map(Provider::cast)
             .flat_map(|n| n.errors())
             .flatten()
+    }
+
+    pub(crate) fn suppress_errors(
+        &self,
+    ) -> impl Iterator<Item = (TextRange, Vec<SuppressErrorKind>)> {
+        self.syntax()
+            .descendants()
+            .filter_map(Suppress::cast)
+            .map(|n| n.suppress())
     }
 
     pub(crate) fn r_symbols(&self) -> Vec<models::RSymbol> {

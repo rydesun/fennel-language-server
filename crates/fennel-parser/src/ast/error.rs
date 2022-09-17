@@ -1,4 +1,4 @@
-use rowan::ast::AstNode;
+use rowan::{ast::AstNode, TextRange};
 
 use crate::{
     ast::{eval::EvalAst, func::FuncAst, macros::ast_assoc, nodes::*},
@@ -249,6 +249,36 @@ impl Provider {
             Self::Global(n) => vec![Some(n.depcrated())].into_iter(),
             Self::IntoClause(n) => vec![n.depcrated()].into_iter(),
             Self::UntilClause(n) => vec![n.depcrated()].into_iter(),
+        }
+    }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
+pub(crate) enum SuppressErrorKind {
+    Unused,
+    Unterminated,
+    Undefined,
+    Unexpected,
+}
+
+ast_assoc!(Suppress, [MacroQuote]);
+
+impl MacroQuote {
+    pub(crate) fn suppress(&self) -> (TextRange, Vec<SuppressErrorKind>) {
+        let range = self.syntax().text_range();
+        (range, vec![
+            SuppressErrorKind::Unused,
+            SuppressErrorKind::Unterminated,
+            SuppressErrorKind::Undefined,
+            SuppressErrorKind::Unexpected,
+        ])
+    }
+}
+
+impl Suppress {
+    pub(crate) fn suppress(&self) -> (TextRange, Vec<SuppressErrorKind>) {
+        match self {
+            Self::MacroQuote(n) => n.suppress(),
         }
     }
 }

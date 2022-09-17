@@ -13,6 +13,7 @@ use rowan::{ast::AstNode, GreenNode, TextRange, TextSize};
 
 use self::{
     bind::{Binding, BindingListAst},
+    error::SuppressErrorKind,
     nodes::Root,
 };
 use crate::{
@@ -33,6 +34,8 @@ pub struct Ast {
     pub globals_errors: Vec<Error>,
     pub unused_l_symbol_errors: Vec<Error>,
     pub other_errors: Vec<Error>,
+    pub(crate) suppressed_errors:
+        Vec<(TextRange, Vec<error::SuppressErrorKind>)>,
 }
 
 impl Ast {
@@ -60,6 +63,7 @@ impl Ast {
             globals_errors: vec![],
             unused_l_symbol_errors: vec![],
             other_errors: vec![],
+            suppressed_errors: vec![],
             lua_globals,
             lua_modules,
             globals: user_globals,
@@ -76,6 +80,7 @@ impl Ast {
         other_errors.extend(ast.definition_conflict_errors());
         ast.unused_l_symbol_errors = ast.unused_l_symbols().collect();
         ast.other_errors = other_errors;
+        ast.suppressed_errors = root.suppress_errors().collect();
         ast
     }
 
@@ -92,10 +97,13 @@ impl Ast {
             .iter()
             .chain(self.globals_errors.iter())
             .chain(self.other_errors.iter())
+            .filter(|e| !self.error_is_suppressed(e))
     }
 
-    pub fn on_save_errors(&self) -> &Vec<Error> {
-        &self.unused_l_symbol_errors
+    pub fn on_save_errors(&self) -> impl Iterator<Item = &Error> {
+        self.unused_l_symbol_errors
+            .iter()
+            .filter(|e| !self.error_is_suppressed(e))
     }
 
     pub fn definition(&self, offset: u32) -> Option<(models::LSymbol, bool)> {
@@ -438,6 +446,24 @@ impl Ast {
         })
     }
 
+    fn error_is_suppressed(&self, e: &Error) -> bool {
+        self.suppressed_errors.iter().any(|ne| {
+            ne.0.contains_range(e.range)
+                && ne.1.iter().any(|kind| match kind {
+                    SuppressErrorKind::Unterminated => {
+                        matches!(e.kind, Unterminated(..))
+                    }
+                    SuppressErrorKind::Unexpected => {
+                        matches!(e.kind, Unexpected(..))
+                    }
+                    SuppressErrorKind::Undefined => {
+                        matches!(e.kind, Undefined)
+                    }
+                    SuppressErrorKind::Unused => matches!(e.kind, Unused),
+                })
+        })
+    }
+
     fn l_symbol(&self, offset: u32) -> Option<&models::LSymbol> {
         self.l_symbols.get(offset)
     }
@@ -664,10 +690,9 @@ mod tests {
     fn check_unused() {
         let text = "(fn x [] (+)) (local _y 1)";
         let ast = parse(text, HashSet::new());
-        assert_eq!(ast.on_save_errors(), &vec![Error::new(
-            TextRange::new(4.into(), 5.into()),
-            Unused,
-        )],);
+        assert_eq!(ast.on_save_errors().collect::<Vec<&Error>>(), vec![
+            &Error::new(TextRange::new(4.into(), 5.into()), Unused,)
+        ],);
     }
 
     #[test]
@@ -827,6 +852,15 @@ mod tests {
                 Depcrated("1.1.0", "_G table"),
             ),
         );
+    }
+
+    #[test]
+    fn check_suppressed_errors() {
+        let text = "(set x 1) `(set ,x)";
+        assert_eq!(
+            parse(text, HashSet::new()).errors().collect::<Vec<&Error>>(),
+            vec![&Error::new(TextRange::new(5.into(), 6.into()), Undefined,),]
+        )
     }
 
     fn definition(text: &str, offset: u32) -> Option<LSymbol> {

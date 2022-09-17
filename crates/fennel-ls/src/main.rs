@@ -323,7 +323,7 @@ impl Backend {
         .await;
         if initialized {
             self.on_save_or_open_errors
-                .insert(uri.clone(), ast.on_save_errors().clone());
+                .insert(uri.clone(), ast.on_save_errors().cloned().collect());
         }
         self.ast_map.insert(uri, ast);
     }
@@ -338,11 +338,13 @@ impl Backend {
     ) {
         if on_save_or_open {
             self.on_save_or_open_errors
-                .insert(uri.clone(), ast.on_save_errors().clone());
+                .insert(uri.clone(), ast.on_save_errors().cloned().collect());
         } else if let Some(mut errs) =
             self.on_save_or_open_errors.get_mut(&uri)
         {
-            errs.retain(|e| ast.on_save_errors().contains(e))
+            let new_errors: Vec<&fennel_parser::Error> =
+                ast.on_save_errors().collect();
+            errs.retain(|e| new_errors.contains(&e))
         };
 
         let errors: Vec<fennel_parser::Error> = if let Some(on_save_errors) =
