@@ -60,7 +60,7 @@ Features are partially completed:
 - [x] `Rename` 
 - [ ] `Formatter`
 
-**All features are not work on multi symbols.**
+**All features don't work properly on multi-symbols.**
 It means that you cannot hover on the part after the dot, for example.
 
 The following are also known issues:
@@ -68,3 +68,6 @@ The following are also known issues:
 - Macro grammar support is very limited.
   You may suffer from wrong diagnostics.
 - Type checking is very weak.
+- Lack of cross-file operation.
+  Such as `require-macros` still does not analyzed.
+  You should use `import-macros` for a clear namespace.
