@@ -31,6 +31,7 @@ pub struct Ast {
 
     pub parser_errors: Vec<Error>,
     pub globals_errors: Vec<Error>,
+    pub unused_l_symbol_errors: Vec<Error>,
     pub other_errors: Vec<Error>,
 }
 
@@ -57,6 +58,7 @@ impl Ast {
             r_symbols: vec![],
             parser_errors,
             globals_errors: vec![],
+            unused_l_symbol_errors: vec![],
             other_errors: vec![],
             lua_globals,
             lua_modules,
@@ -72,7 +74,7 @@ impl Ast {
             .chain(root.delimiter_whitespace_errors())
             .collect();
         other_errors.extend(ast.definition_conflict_errors());
-        other_errors.extend(ast.unused_l_symbols());
+        ast.unused_l_symbol_errors = ast.unused_l_symbols().collect();
         ast.other_errors = other_errors;
         ast
     }
@@ -90,6 +92,10 @@ impl Ast {
             .iter()
             .chain(self.globals_errors.iter())
             .chain(self.other_errors.iter())
+    }
+
+    pub fn on_save_errors(&self) -> &Vec<Error> {
+        &self.unused_l_symbol_errors
     }
 
     pub fn definition(&self, offset: u32) -> Option<(models::LSymbol, bool)> {
@@ -485,9 +491,8 @@ mod tests {
     // Not check these
     impl Ast {
         fn filtered_errors(&self) -> impl Iterator<Item = &Error> {
-            self.errors().filter(|e| {
-                !matches!(e.kind, ErrorKind::Unused | ErrorKind::Depcrated(..))
-            })
+            self.errors()
+                .filter(|e| !matches!(e.kind, ErrorKind::Depcrated(..)))
         }
     }
 
@@ -657,7 +662,7 @@ mod tests {
     fn check_unused() {
         let text = "(fn x [] (+)) (local _y 1)";
         let ast = parse(text, HashSet::new());
-        assert_eq!(ast.errors().collect::<Vec<&Error>>(), vec![&Error::new(
+        assert_eq!(ast.on_save_errors(), &vec![Error::new(
             TextRange::new(4.into(), 5.into()),
             Unused,
         )],);

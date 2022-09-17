@@ -22,6 +22,8 @@ struct Backend {
     config: Arc<RwLock<config::Configuration>>,
     doc_map: DashMap<Url, Rope>,
     ast_map: DashMap<Url, Ast>,
+    // publish those before saving
+    on_save_or_open_errors: DashMap<Url, Vec<fennel_parser::Error>>,
 }
 
 #[tower_lsp::async_trait]
@@ -231,6 +233,7 @@ impl tower_lsp::LanguageServer for Backend {
             params.text_document.uri,
             params.text_document.text,
             params.text_document.version,
+            true,
         )
         .await
     }
@@ -240,8 +243,29 @@ impl tower_lsp::LanguageServer for Backend {
             params.text_document.uri,
             std::mem::take(&mut params.content_changes[0].text),
             params.text_document.version,
+            false,
         )
         .await
+    }
+
+    async fn did_save(&self, params: DidSaveTextDocumentParams) {
+        let uri = params.text_document.uri;
+        let ast = self.ast_map.get(&uri).ok_or_else(Error::invalid_request);
+        if ast.is_err() {
+            return;
+        }
+        let doc = self.doc_map.get(&uri).ok_or_else(Error::invalid_request);
+        if doc.is_err() {
+            return;
+        }
+        self.publish_diagnostics(
+            &doc.unwrap(),
+            uri,
+            &ast.unwrap(),
+            None,
+            true,
+        )
+        .await;
     }
 
     async fn did_change_configuration(
@@ -259,15 +283,27 @@ impl tower_lsp::LanguageServer for Backend {
                 ast.update_globals(config.fennel.diagnostics.globals.clone());
                 let uri = r.key();
                 let doc = self.doc_map.get(uri).unwrap();
-                self.publish_diagnostics(&doc, uri.clone(), r.value(), None)
-                    .await;
+                self.publish_diagnostics(
+                    &doc,
+                    uri.clone(),
+                    r.value(),
+                    None,
+                    false,
+                )
+                .await;
             }
         }
     }
 }
 
 impl Backend {
-    async fn on_change(&self, uri: Url, text: String, version: i32) {
+    async fn on_change(
+        &self,
+        uri: Url,
+        text: String,
+        version: i32,
+        initialized: bool,
+    ) {
         let doc = ropey::Rope::from_str(&text);
         self.doc_map.insert(uri.clone(), doc.clone());
 
@@ -277,7 +313,18 @@ impl Backend {
         }
 
         let ast = fennel_parser::parse(&text, globals);
-        self.publish_diagnostics(&doc, uri.clone(), &ast, Some(version)).await;
+        self.publish_diagnostics(
+            &doc,
+            uri.clone(),
+            &ast,
+            Some(version),
+            initialized,
+        )
+        .await;
+        if initialized {
+            self.on_save_or_open_errors
+                .insert(uri.clone(), ast.on_save_errors().clone());
+        }
         self.ast_map.insert(uri, ast);
     }
 
@@ -287,8 +334,26 @@ impl Backend {
         uri: Url,
         ast: &Ast,
         version: Option<i32>,
+        on_save_or_open: bool,
     ) {
-        let diagnostics = ast.errors().flat_map(|error| {
+        if on_save_or_open {
+            self.on_save_or_open_errors
+                .insert(uri.clone(), ast.on_save_errors().clone());
+        } else if let Some(mut errs) =
+            self.on_save_or_open_errors.get_mut(&uri)
+        {
+            errs.retain(|e| ast.on_save_errors().contains(e))
+        };
+
+        let errors: Vec<fennel_parser::Error> = if let Some(on_save_errors) =
+            self.on_save_or_open_errors.get(&uri)
+        {
+            ast.errors().chain(on_save_errors.iter()).cloned().collect()
+        } else {
+            ast.errors().cloned().collect()
+        };
+
+        let diagnostics = errors.into_iter().flat_map(|error| {
             lsp_range(doc, error.range).map(|range| {
                 let (message, severity) = view::error(error.kind);
                 Diagnostic::new(
@@ -317,6 +382,7 @@ async fn main() {
         client,
         doc_map: DashMap::new(),
         ast_map: DashMap::new(),
+        on_save_or_open_errors: DashMap::new(),
         config: Arc::new(RwLock::new(config::Configuration::default())),
     })
     .finish();

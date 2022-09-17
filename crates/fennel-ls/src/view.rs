@@ -110,10 +110,9 @@ pub(crate) fn error(e: ErrorKind) -> (String, DiagnosticSeverity) {
         ErrorKind::Undefined => {
             ("Undefined identifier".into(), DiagnosticSeverity::ERROR)
         }
-        ErrorKind::Unused => (
-            "Unused identifier. You can prefix it with a underscore".into(),
-            DiagnosticSeverity::HINT,
-        ),
+        ErrorKind::Unused => {
+            ("Unused identifier".into(), DiagnosticSeverity::HINT)
+        }
         ErrorKind::MissingWhitespace => (
             "Expected whitespace before opening delimiter".into(),
             DiagnosticSeverity::ERROR,
