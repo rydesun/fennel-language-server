@@ -71,3 +71,9 @@ The following are also known issues:
 - Lack of cross-file operation.
   Such as `require-macros` still does not analyzed.
   You should use `import-macros` for a clear namespace.
+
+## Also See
+
+XeroOl `fennel-ls` written in pure fennel you may love
+
+[https://git.sr.ht/~xerool/fennel-ls](https://git.sr.ht/~xerool/fennel-ls)
