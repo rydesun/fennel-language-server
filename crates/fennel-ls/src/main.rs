@@ -375,8 +375,7 @@ impl Backend {
     }
 }
 
-#[tokio::main]
-async fn main() {
+fn main() {
     let stdin = tokio::io::stdin();
     let stdout = tokio::io::stdout();
 
@@ -388,5 +387,11 @@ async fn main() {
         config: Arc::new(RwLock::new(config::Configuration::default())),
     })
     .finish();
-    tower_lsp::Server::new(stdin, stdout, socket).serve(service).await;
+    tokio::runtime::Builder::new_multi_thread()
+        .enable_all()
+        .build()
+        .unwrap()
+        .block_on(async {
+            tower_lsp::Server::new(stdin, stdout, socket).serve(service).await;
+        })
 }
