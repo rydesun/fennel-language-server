@@ -537,7 +537,7 @@ mod tests {
                 },
                 scope: models::Scope {
                     kind: models::ScopeKind::Var,
-                    range: TextRange::new(15.into(), 27.into()),
+                    range: TextRange::new(26.into(), 27.into()),
                 },
                 value: models::Value {
                     kind: models::ValueKind::Unknown,
@@ -551,7 +551,7 @@ mod tests {
                 },
                 scope: models::Scope {
                     kind: models::ScopeKind::Var,
-                    range: TextRange::new(15.into(), 27.into()),
+                    range: TextRange::new(26.into(), 27.into()),
                 },
                 value: models::Value {
                     kind: models::ValueKind::Unknown,
@@ -565,7 +565,7 @@ mod tests {
                 },
                 scope: models::Scope {
                     kind: models::ScopeKind::Var,
-                    range: TextRange::new(5.into(), 27.into()),
+                    range: TextRange::new(8.into(), 27.into()),
                 },
                 value: models::Value {
                     kind: models::ValueKind::Unknown,
@@ -591,7 +591,7 @@ mod tests {
             },
             scope: models::Scope {
                 kind: models::ScopeKind::Macro,
-                range: TextRange::new(1.into(), 16.into()),
+                range: TextRange::new(15.into(), 16.into()),
             },
             value: models::Value {
                 kind: models::ValueKind::Macro,
@@ -617,7 +617,7 @@ mod tests {
                 },
                 scope: models::Scope {
                     kind: models::ScopeKind::Local,
-                    range: TextRange::new(7.into(), 29.into()),
+                    range: TextRange::new(10.into(), 29.into()),
                 },
                 value: models::Value {
                     kind: models::ValueKind::Number,
@@ -631,7 +631,7 @@ mod tests {
                 },
                 scope: models::Scope {
                     kind: models::ScopeKind::Match,
-                    range: TextRange::new(25.into(), 28.into()),
+                    range: TextRange::new(26.into(), 28.into()),
                 },
                 value: models::Value {
                     kind: models::ValueKind::Match,

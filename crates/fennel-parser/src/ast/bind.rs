@@ -544,7 +544,7 @@ impl Match {
                 if l_symbols.nearest(&token.clone()).is_none() {
                     let scope_range = ScopeExtend::This(p.clone()).range(node);
                     l_symbols.0.insert(
-                        scope_range.start().into(),
+                        token.range.start().into(),
                         models::LSymbol {
                             token,
                             scope: models::Scope {
@@ -600,7 +600,7 @@ impl Catch {
                 if l_symbols.nearest(&token.clone()).is_none() {
                     let scope_range = ScopeExtend::This(p.clone()).range(node);
                     l_symbols.0.insert(
-                        scope_range.start().into(),
+                        token.range.start().into(),
                         models::LSymbol {
                             token,
                             scope: models::Scope {
@@ -664,7 +664,7 @@ impl MatchTry {
                 if l_symbols.nearest(&token.clone()).is_none() {
                     let scope_range = ScopeExtend::Current.range(node);
                     l_symbols.0.insert(
-                        scope_range.start().into(),
+                        token.range.start().into(),
                         models::LSymbol {
                             token,
                             scope: models::Scope {
@@ -770,7 +770,7 @@ impl ScopeExtend {
                 node.ancestors().last().and_then(ScopeAst::cast).unwrap().end()
             }
         };
-        let start = node.text_range().start();
+        let start = node.text_range().end();
         TextRange::new(start, scope_end)
     }
 }
