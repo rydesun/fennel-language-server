@@ -809,6 +809,28 @@ mod tests {
         );
     }
 
+    #[test]
+    fn check_varargs_position() {
+        let text = "(fn [... ... a] (+))";
+        assert_eq!(
+            parse(text, HashSet::new())
+                .filtered_errors()
+                .collect::<Vec<&Error>>(),
+            vec![
+                &Error::new(
+                    TextRange::new(9.into(), 12.into()),
+                    Unexpected(SyntaxKind::VARARG),
+                ),
+                &Error::new(
+                    TextRange::new(13.into(), 14.into()),
+                    Unexpected(SyntaxKind::SYMBOL),
+                ),
+                &Error::new(TextRange::new(5.into(), 8.into()), MultiVarargs,),
+                &Error::new(TextRange::new(9.into(), 12.into()), MultiVarargs,),
+            ]
+        );
+    }
+
     #[ignore = "FIXME"]
     #[test]
     fn check_varargs() {

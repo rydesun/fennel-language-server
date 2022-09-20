@@ -4,7 +4,7 @@ use crate::{
     ast::{eval::EvalAst, func::FuncAst, macros::ast_assoc, nodes::*},
     models, Error,
     ErrorKind::*,
-    SyntaxKind, SyntaxNode,
+    SyntaxKind, SyntaxNode, SyntaxToken,
 };
 
 ast_assoc!(Provider, [
@@ -114,6 +114,27 @@ impl FuncAst {
                 })
                 .map(|_| Error::new(node.text_range(), MethodNotAllowed))
         })
+    }
+
+    fn multi_varargs(&self) -> Option<Vec<Error>> {
+        let varargs: Vec<SyntaxToken> = self
+            .syntax()
+            .children()
+            .find(|n| n.kind() == SyntaxKind::N_PARAM_TABLE)?
+            .descendants_with_tokens()
+            .filter_map(|n| n.as_token().cloned())
+            .filter(|t| t.text() == "...")
+            .collect();
+        if varargs.len() > 1 {
+            Some(
+                varargs
+                    .into_iter()
+                    .map(|t| Error::new(t.text_range(), MultiVarargs))
+                    .collect(),
+            )
+        } else {
+            None
+        }
     }
 }
 
@@ -240,7 +261,13 @@ impl Provider {
                 vec![n.macro_whitespace(), n.empty_list()].into_iter()
             }
             Self::SubList(n) => vec![n.literal_call()].into_iter(),
-            Self::FuncAst(n) => vec![n.def_method()].into_iter(),
+            Self::FuncAst(n) => {
+                let mut res = vec![n.def_method()];
+                if let Some(errors) = n.multi_varargs() {
+                    res.extend(errors.into_iter().map(|e| Some(e)))
+                };
+                res.into_iter()
+            }
             Self::BindingSymbol(n) => vec![n.field_and_method()].into_iter(),
             Self::RightSymbol(n) => vec![n.method_call()].into_iter(),
             Self::MatchTry(n) => n.catch().into_iter(),

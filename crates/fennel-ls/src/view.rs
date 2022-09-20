@@ -132,6 +132,10 @@ pub(crate) fn error(e: ErrorKind) -> (String, DiagnosticSeverity) {
         ErrorKind::FieldAndMethodNotAllowed => {
             ("Unexpected multi symbol".into(), DiagnosticSeverity::ERROR)
         }
+        ErrorKind::MultiVarargs => (
+            "Multiple varargs are not allowed".into(),
+            DiagnosticSeverity::WARNING,
+        ),
         ErrorKind::UnexpectedVarargs => (
             "Varargs not found in parameter table".into(),
             DiagnosticSeverity::ERROR,

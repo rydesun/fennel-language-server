@@ -6,6 +6,7 @@ use crate::{models::ValueKind, syntax::SyntaxKind};
 pub enum ErrorKind {
     Unexpected(SyntaxKind),
     UnexpectedVarargs,
+    MultiVarargs,
     UnexpectedEof,
     EmptyList,
     Dismatched,
