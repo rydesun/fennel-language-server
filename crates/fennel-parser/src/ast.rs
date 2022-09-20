@@ -831,9 +831,8 @@ mod tests {
         );
     }
 
-    #[ignore = "FIXME"]
     #[test]
-    fn check_varargs() {
+    fn check_undefined_varargs() {
         let text = "... (fn a [] (print ...))";
         assert_eq!(
             parse(text, HashSet::new()).errors().collect::<Vec<&Error>>(),

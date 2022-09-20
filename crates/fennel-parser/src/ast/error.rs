@@ -1,4 +1,4 @@
-use rowan::{ast::AstNode, TextRange};
+use rowan::{ast::AstNode, TextRange, WalkEvent};
 
 use crate::{
     ast::{eval::EvalAst, func::FuncAst, macros::ast_assoc, nodes::*},
@@ -116,7 +116,7 @@ impl FuncAst {
         })
     }
 
-    fn multi_varargs(&self) -> Option<Vec<Error>> {
+    fn varargs_errors(&self) -> Option<Vec<Error>> {
         let varargs: Vec<SyntaxToken> = self
             .syntax()
             .children()
@@ -125,15 +125,29 @@ impl FuncAst {
             .filter_map(|n| n.as_token().cloned())
             .filter(|t| t.text() == "...")
             .collect();
-        if varargs.len() > 1 {
+        if varargs.is_empty() {
+            let mut res = vec![];
+            let mut traverse = self.syntax().preorder_with_tokens();
+            traverse.next(); // skip self
+            while let Some(e) = traverse.next() {
+                if let WalkEvent::Enter(n) = e {
+                    if n.kind() == SyntaxKind::VARARG {
+                        res.push(Error::new(n.text_range(), UnexpectedVarargs))
+                    } else if Self::can_cast(n.kind()) {
+                        traverse.skip_subtree()
+                    }
+                }
+            }
+            Some(res)
+        } else if varargs.len() == 1 {
+            None
+        } else {
             Some(
                 varargs
                     .into_iter()
                     .map(|t| Error::new(t.text_range(), MultiVarargs))
                     .collect(),
             )
-        } else {
-            None
         }
     }
 }
@@ -263,8 +277,8 @@ impl Provider {
             Self::SubList(n) => vec![n.literal_call()].into_iter(),
             Self::FuncAst(n) => {
                 let mut res = vec![n.def_method()];
-                if let Some(errors) = n.multi_varargs() {
-                    res.extend(errors.into_iter().map(|e| Some(e)))
+                if let Some(errors) = n.varargs_errors() {
+                    res.extend(errors.into_iter().map(Some))
                 };
                 res.into_iter()
             }
