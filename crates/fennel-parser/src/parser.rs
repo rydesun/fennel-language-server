@@ -707,9 +707,7 @@ impl<'p> Parser<'p> {
         // TODO: refactor
         match cur_rule.expect {
             N_MATCH_TRY_CLAUSE
-                if sets::first_set(&N_MATCH_TRY_LIST)
-                    .unwrap()
-                    .contains(&cur_token.kind)
+                if sets::first_set(N_MATCH_TRY_LIST, cur_token.kind)
                     && (sets::TokenSet::MATCH_PATTERN
                         .contains(self.peek().kind)
                         || self.peek().kind == KEYWORD_WHERE) =>
@@ -722,9 +720,7 @@ impl<'p> Parser<'p> {
                 return;
             }
             N_MATCH_TRY_CLAUSE
-                if sets::first_set(&N_CATCH_LIST)
-                    .unwrap()
-                    .contains(&cur_token.kind)
+                if sets::first_set(N_CATCH_LIST, cur_token.kind)
                     && sets::TokenSet::CATCH.contains(self.peek().kind) =>
             {
                 self.expand(

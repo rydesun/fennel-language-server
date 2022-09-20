@@ -17,12 +17,6 @@ pub(crate) fn text_range_with_offset(
     )
 }
 
-macro_rules! match_first_set {
-    ($kind:ident, $token:ident) => {
-        crate::parser::sets::first_set(&$kind).unwrap().contains(&$token.kind)
-    };
-}
-
 macro_rules! expand_rules {
     (
         $self:ident, $callback:ident,
@@ -31,7 +25,8 @@ macro_rules! expand_rules {
         $(, $rest_rules:tt )* },)*
     ) => {
         match $cur_rule.expect {
-            $( $node if match_first_set!($kind, $cur_token) => {
+            $( $node if crate::parser::sets::first_set(
+                    $kind, $cur_token.kind) => {
                 $self.$callback(
                     $cur_token,
                     vec![
