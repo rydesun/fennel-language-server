@@ -22,14 +22,17 @@ No demand for the Fennel environment. You don't even need Fennel runtime!
 
 ## Integration
 
+**NOTE**: The executable file is now named `fennel-language-server`.
+The former name `fennel-ls` has been abandoned.
+
 ### Neovim
 
 For Nvim user to setup `fennel-language-server` with `nvim-lspconfig`,
 add the following code to your configuration.
 
 ```lua
-local configs = require 'lspconfig.configs'
-configs.fennel_language_server = {
+local lspconfig = require 'lspconfig'
+require 'lspconfig.configs'.fennel_language_server = {
   default_config = {
     -- replace it with true path
     cmd = {'/PATH/TO/BINFILE'},
@@ -45,6 +48,8 @@ configs.fennel_language_server = {
     },
   },
 }
+
+lspconfig.fennel_language_server.setup{}
 ```
 
 ## Status
