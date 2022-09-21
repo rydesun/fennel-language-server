@@ -1,11 +1,11 @@
-# fennel-ls
+# fennel-language-server
 
 [![Test](https://github.com/rydesun/fennel-language-server/actions/workflows/test.yaml/badge.svg)](https://github.com/rydesun/fennel-language-server/actions/workflows/test.yaml)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](https://github.com/rydesun/fennel-language-server/blob/master/LICENSE)
 
 Fennel language server protocol (LSP) support.
 
-`fennel-ls` is currently in a very early stage and unreliable.
+`fennel-language-server` is currently in a very early stage and unreliable.
 Use it just for an encouraging try.
 
 ## Installation
@@ -24,12 +24,12 @@ No demand for the Fennel environment. You don't even need Fennel runtime!
 
 ### Neovim
 
-For Nvim user to setup `fennel-ls` with `nvim-lspconfig`,
+For Nvim user to setup `fennel-language-server` with `nvim-lspconfig`,
 add the following code to your configuration.
 
 ```lua
 local configs = require 'lspconfig.configs'
-configs.fennel_ls = {
+configs.fennel_language_server = {
   default_config = {
     -- replace it with true path
     cmd = {'/PATH/TO/BINFILE'},
