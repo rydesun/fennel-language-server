@@ -911,6 +911,7 @@ mod tests {
     use rowan::TextRange;
 
     use super::*;
+    use crate::SyntaxNode;
 
     #[test]
     fn parse_chunk() {
