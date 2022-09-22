@@ -16,7 +16,6 @@ use crate::{
     errors::{Error, ErrorKind::*},
     syntax::lists::*,
     SyntaxKind::{self, *},
-    SyntaxNode,
 };
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
@@ -128,10 +127,6 @@ impl<'p> Parser<'p> {
         let green_node = self.builder.finish();
         assert!(self.rule_stack.is_empty());
 
-        eprintln!(
-            "=== Tree Begin ===\n{:#?}\n=== Tree End ===\n",
-            SyntaxNode::new_root(green_node.clone())
-        );
         Parsed { green_node, errors: self.errors }
     }
 
