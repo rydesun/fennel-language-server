@@ -39,7 +39,7 @@ impl tower_lsp::LanguageServer for Backend {
             }),
             capabilities: ServerCapabilities {
                 text_document_sync: Some(TextDocumentSyncCapability::Kind(
-                    TextDocumentSyncKind::FULL,
+                    TextDocumentSyncKind::INCREMENTAL,
                 )),
                 definition_provider: Some(OneOf::Left(true)),
                 references_provider: Some(OneOf::Left(true)),
@@ -63,7 +63,7 @@ impl tower_lsp::LanguageServer for Backend {
         let position = params.text_document_position_params.position;
         let ast = self.ast_map.get(&uri).ok_or_else(Error::invalid_request)?;
         let doc = self.doc_map.get(&uri).ok_or_else(Error::invalid_request)?;
-        let offset = position_to_offset(&doc, position)?;
+        let offset = position_to_byte_offset(&doc, position)?;
 
         if let Some((symbol, _)) = ast.definition(offset) {
             let range = lsp_range(&doc, symbol.token.range)?;
@@ -81,7 +81,7 @@ impl tower_lsp::LanguageServer for Backend {
         let position = params.text_document_position.position;
         let ast = self.ast_map.get(&uri).ok_or_else(Error::invalid_request)?;
         let doc = self.doc_map.get(&uri).ok_or_else(Error::invalid_request)?;
-        let offset = position_to_offset(&doc, position)?;
+        let offset = position_to_byte_offset(&doc, position)?;
 
         let references = ast.reference(offset);
         if references.is_none() {
@@ -107,7 +107,7 @@ impl tower_lsp::LanguageServer for Backend {
         let position = params.text_document_position.position;
         let ast = self.ast_map.get(&uri).ok_or_else(Error::invalid_request)?;
         let doc = self.doc_map.get(&uri).ok_or_else(Error::invalid_request)?;
-        let offset = position_to_offset(&doc, position)?;
+        let offset = position_to_byte_offset(&doc, position)?;
 
         if !ast.validate_name(&params.new_name) {
             return Err(Error::invalid_params("Illegal identifier name"));
@@ -134,7 +134,7 @@ impl tower_lsp::LanguageServer for Backend {
         let position = params.text_document_position_params.position;
         let ast = self.ast_map.get(&uri).ok_or_else(Error::invalid_request)?;
         let doc = self.doc_map.get(&uri).ok_or_else(Error::invalid_request)?;
-        let offset = position_to_offset(&doc, position)?;
+        let offset = position_to_byte_offset(&doc, position)?;
 
         let definition = ast.definition(offset);
         if definition.is_none() {
@@ -195,7 +195,7 @@ impl tower_lsp::LanguageServer for Backend {
         let position = params.text_document_position.position;
         let ast = self.ast_map.get(&uri).ok_or_else(Error::invalid_request)?;
         let doc = self.doc_map.get(&uri).ok_or_else(Error::invalid_request)?;
-        let offset = position_to_offset(&doc, position)?;
+        let offset = position_to_byte_offset(&doc, position)?;
 
         let trigger = params.context.and_then(|ctx| ctx.trigger_character);
         let (symbols, globals) = ast.completion(offset, trigger);
@@ -229,23 +229,65 @@ impl tower_lsp::LanguageServer for Backend {
 
     async fn did_open(&self, params: DidOpenTextDocumentParams) {
         self.client.log_message(MessageType::INFO, "file opened!").await;
-        self.on_change(
-            params.text_document.uri,
-            params.text_document.text,
-            params.text_document.version,
-            true,
-        )
-        .await
+        let uri = params.text_document.uri;
+        let text = params.text_document.text;
+        let version = params.text_document.version;
+
+        let doc = ropey::Rope::from_str(&text);
+        self.doc_map.insert(uri.clone(), doc.clone());
+
+        let mut globals = HashSet::new();
+        for global in &self.config.read().unwrap().fennel.diagnostics.globals {
+            globals.insert(global.clone());
+        }
+
+        let ast = fennel_parser::parse(text.chars(), globals);
+        self.publish_diagnostics(&doc, uri.clone(), &ast, Some(version), true)
+            .await;
+
+        self.on_save_or_open_errors
+            .insert(uri.clone(), ast.on_save_errors().cloned().collect());
+
+        self.ast_map.insert(uri, ast);
     }
 
-    async fn did_change(&self, mut params: DidChangeTextDocumentParams) {
-        self.on_change(
-            params.text_document.uri,
-            std::mem::take(&mut params.content_changes[0].text),
-            params.text_document.version,
+    async fn did_change(&self, params: DidChangeTextDocumentParams) {
+        let uri = params.text_document.uri;
+        let version = params.text_document.version;
+        let mut doc = if let Some(doc) = self.doc_map.get_mut(&uri) {
+            doc
+        } else {
+            return;
+        };
+
+        params.content_changes.iter().for_each(|change| {
+            if let Some(lsp_range) = change.range {
+                let range = rope_range(&doc, lsp_range).unwrap();
+                doc.remove(range.clone());
+                if !change.text.is_empty() {
+                    doc.insert(range.start, &change.text);
+                }
+            } else {
+                *doc = Rope::from_str(&change.text);
+            }
+        });
+
+        let mut globals = HashSet::new();
+        for global in &self.config.read().unwrap().fennel.diagnostics.globals {
+            globals.insert(global.clone());
+        }
+
+        let ast = fennel_parser::parse(doc.chars(), globals);
+        self.publish_diagnostics(
+            &doc,
+            uri.clone(),
+            &ast,
+            Some(version),
             false,
         )
-        .await
+        .await;
+
+        self.ast_map.insert(uri, ast);
     }
 
     async fn did_save(&self, params: DidSaveTextDocumentParams) {
@@ -297,37 +339,6 @@ impl tower_lsp::LanguageServer for Backend {
 }
 
 impl Backend {
-    async fn on_change(
-        &self,
-        uri: Url,
-        text: String,
-        version: i32,
-        initialized: bool,
-    ) {
-        let doc = ropey::Rope::from_str(&text);
-        self.doc_map.insert(uri.clone(), doc.clone());
-
-        let mut globals = HashSet::new();
-        for global in &self.config.read().unwrap().fennel.diagnostics.globals {
-            globals.insert(global.clone());
-        }
-
-        let ast = fennel_parser::parse(text.chars(), globals);
-        self.publish_diagnostics(
-            &doc,
-            uri.clone(),
-            &ast,
-            Some(version),
-            initialized,
-        )
-        .await;
-        if initialized {
-            self.on_save_or_open_errors
-                .insert(uri.clone(), ast.on_save_errors().cloned().collect());
-        }
-        self.ast_map.insert(uri, ast);
-    }
-
     async fn publish_diagnostics(
         &self,
         doc: &Rope,
