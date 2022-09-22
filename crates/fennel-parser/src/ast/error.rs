@@ -131,9 +131,10 @@ impl FuncAst {
             traverse.next(); // skip self
             while let Some(e) = traverse.next() {
                 if let WalkEvent::Enter(n) = e {
-                    if n.kind() == SyntaxKind::VARARG {
+                    let kind = n.kind();
+                    if kind == SyntaxKind::VARARG {
                         res.push(Error::new(n.text_range(), UnexpectedVarargs))
-                    } else if Self::can_cast(n.kind()) {
+                    } else if Self::can_cast(kind) || Macro::can_cast(kind) {
                         traverse.skip_subtree()
                     }
                 }
