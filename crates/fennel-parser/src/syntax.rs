@@ -1,244 +1,77 @@
 use std::fmt;
 
-use logos::{Lexer, Logos};
-
-#[derive(Logos, Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
 #[repr(u16)]
 #[allow(non_camel_case_types)]
 #[allow(clippy::upper_case_acronyms)]
 pub enum SyntaxKind {
-    #[regex(
-        r#"[^.:#(){}\[\]"'~;,@`&\s][^(){}\[\]"'~;,@`&\s]*"#,
-        priority = 1
-    )]
     SYMBOL,
-
     SYMBOL_FIELD,
     SYMBOL_METHOD,
 
-    #[regex(r"([+-]?(0x)?\.[0-9][0-9_]*|[+-]?[0-9]+[0-9_]*\.?[0-9_]*|[+-]?0x[0-9a-f]+[0-9a-f_]*\.?[0-9_]*)([eE][+-]?[0-9_]+)?",
-        priority = 4)]
     FLOAT,
-
-    #[regex(r"[+-]?(0x)?[0-9][0-9_]*", priority = 5)]
     INTEGER,
-
-    #[token("true")]
-    #[token("false")]
     BOOL,
-
-    #[token("nil")]
     NIL,
-
-    #[token("\"", lex_quote_string)]
     QUOTE_STRING,
-
-    #[regex(r#":[^(){}\[\]"'~;,@`\s]+"#)]
     COLON_STRING,
-
-    #[token("or")]
     KEYWORD_OR,
-
-    #[token("and")]
-    #[token("+")]
-    #[token("-")]
-    #[token("*")]
-    #[token("/")]
-    #[token("//")]
-    #[token("%")]
-    #[token("^")]
-    #[token(">")]
-    #[token("<")]
-    #[token(">=")]
-    #[token("<=")]
-    #[token("~=")]
-    #[token("=")]
-    #[token("not=")]
-    #[token("lshift")]
-    #[token("rshift")]
-    #[token("band")]
-    #[token("bor")]
-    #[token("bxor")]
-    #[token("..")]
-    #[token("not")]
-    #[token("bnot")]
-    #[token("length")]
-    #[token(".")]
-    #[token("?.")]
     OPERATOR,
-
-    #[token(":")]
     COLON,
-
-    #[token("#")]
     HASHFN,
-
-    #[token("&")]
-    #[token("&as")]
     CAPTURE,
-
-    // TODO: not match whitespace
-    // FIXME: (#)
-    #[regex(r"#\s+")]
     LENGTH,
-
-    #[token("->")]
-    #[token("->>")]
-    #[token("-?>")]
-    #[token("-?>>")]
     THREAD,
-
-    #[token("(")]
     L_PAREN,
-
-    #[token(")")]
     R_PAREN,
-
-    #[token("[")]
     L_BRACKET,
-
-    #[token("]")]
     R_BRACKET,
-
-    #[token("{")]
     L_BRACE,
-
-    #[token("}")]
     R_BRACE,
-
-    #[token(",")]
     COMMA,
-
-    #[token("...")]
     VARARG,
-
-    #[token("?")]
     QUESTION,
-
-    #[token("fn")]
     KEYWORD_FN,
-
-    #[token("lambda")]
-    #[token("λ")]
     KEYWORD_LAMBDA,
-
-    #[token("local")]
     KEYWORD_LOCAL,
-
-    #[token("let")]
     KEYWORD_LET,
-
-    #[token("set")]
     KEYWORD_SET,
-
-    #[token("include")]
     KEYWORD_INCLUDE,
-
-    #[token("accumulate")]
     KEYWORD_ACCUMULATE,
-
-    #[token("`")]
     BACKTICK,
-
-    #[token("catch")]
     KEYWORD_CATCH,
-
-    #[token("collect")]
     KEYWORD_COLLECT,
-
-    #[token("do")]
     KEYWORD_DO,
-
-    #[token("doto")]
     KEYWORD_DOTO,
-
-    #[token("each")]
     KEYWORD_EACH,
-
-    #[token("eval-compiler")]
     KEYWORD_EVAL_COMPILER,
-
-    #[token("for")]
     KEYWORD_FOR,
-
-    #[token("global")]
     KEYWORD_GLOBAL,
-
-    #[token("icollect")]
     KEYWORD_ICOLLECT,
-
-    #[token("if")]
     KEYWORD_IF,
-
-    #[token("import-macros")]
     KEYWORD_IMPORT_MACROS,
-
-    #[token(":into")]
-    #[token("&into")]
     KEYWORD_INTO,
-
-    #[token("lua")]
     KEYWORD_LUA,
-
-    #[token("macro")]
     KEYWORD_MACRO,
-
-    #[token("macrodebug")]
     KEYWORD_MACRODEBUG,
-
-    #[token("macros")]
     KEYWORD_MACROS,
-
-    #[token("match")]
     KEYWORD_MATCH,
-
-    #[token("match-try")]
     KEYWORD_MATCH_TRY,
-
-    #[token("partial")]
     KEYWORD_PARTIAL,
-
-    #[token("pick-args")]
     KEYWORD_PICK_ARGS,
-
-    #[token("values")]
     KEYWORD_VALUES,
-
-    #[token("pick-values")]
     KEYWORD_PICK_VALUES,
-
-    #[token("require-macros")]
     KEYWORD_REQUIRE_MACROS,
-
-    #[token("tset")]
     KEYWORD_TSET,
-
-    #[token(":until")]
-    #[token("&until")]
     KEYWORD_UNTIL,
-
-    #[token("var")]
     KEYWORD_VAR,
-
-    #[token("when")]
     KEYWORD_WHEN,
-
-    #[token("where")]
     KEYWORD_WHERE,
-
-    #[token("while")]
     KEYWORD_WHILE,
-
-    #[token("with-open")]
     KEYWORD_WITH_OPEN,
 
-    #[regex(r";[^\n\r]*(\r\n?|\n)")]
     COMMENT,
-
-    #[regex(r"\s+")]
     WHITESPACE,
-
-    #[error]
     ERROR,
 
     N_LIST,
@@ -487,25 +320,88 @@ pub(crate) mod lists {
     ];
 }
 
-fn lex_quote_string(lex: &mut Lexer<SyntaxKind>) -> bool {
-    let remainder: &str = lex.remainder();
-    let mut total_len = 0;
-    let mut escaped = false;
-
-    for c in remainder.chars() {
-        total_len += c.len_utf8();
-        if c == '\\' {
-            escaped = !escaped;
-            continue;
-        }
-        if c == '"' && !escaped {
-            lex.bump(remainder[0..total_len].as_bytes().len());
-            return true;
-        }
-        escaped = false;
-    }
-    false
-}
+pub(crate) const TOEKN: &[(&str, SyntaxKind)] = &[
+    ("true", SyntaxKind::BOOL),
+    ("false", SyntaxKind::BOOL),
+    ("nil", SyntaxKind::NIL),
+    ("or", SyntaxKind::KEYWORD_OR),
+    ("and", SyntaxKind::OPERATOR),
+    ("+", SyntaxKind::OPERATOR),
+    ("-", SyntaxKind::OPERATOR),
+    ("*", SyntaxKind::OPERATOR),
+    ("/", SyntaxKind::OPERATOR),
+    ("//", SyntaxKind::OPERATOR),
+    ("%", SyntaxKind::OPERATOR),
+    ("^", SyntaxKind::OPERATOR),
+    (">", SyntaxKind::OPERATOR),
+    ("<", SyntaxKind::OPERATOR),
+    (">=", SyntaxKind::OPERATOR),
+    ("<=", SyntaxKind::OPERATOR),
+    ("~=", SyntaxKind::OPERATOR),
+    ("=", SyntaxKind::OPERATOR),
+    ("not=", SyntaxKind::OPERATOR),
+    ("lshift", SyntaxKind::OPERATOR),
+    ("rshift", SyntaxKind::OPERATOR),
+    ("band", SyntaxKind::OPERATOR),
+    ("bor", SyntaxKind::OPERATOR),
+    ("bxor", SyntaxKind::OPERATOR),
+    ("..", SyntaxKind::OPERATOR),
+    ("not", SyntaxKind::OPERATOR),
+    ("bnot", SyntaxKind::OPERATOR),
+    ("length", SyntaxKind::OPERATOR),
+    (".", SyntaxKind::OPERATOR),
+    ("?.", SyntaxKind::OPERATOR),
+    (":", SyntaxKind::COLON),
+    ("#", SyntaxKind::HASHFN),
+    ("&", SyntaxKind::CAPTURE),
+    ("&as", SyntaxKind::CAPTURE),
+    ("->", SyntaxKind::THREAD),
+    ("->>", SyntaxKind::THREAD),
+    ("-?>", SyntaxKind::THREAD),
+    ("-?>>", SyntaxKind::THREAD),
+    ("...", SyntaxKind::VARARG),
+    ("?", SyntaxKind::QUESTION),
+    ("fn", SyntaxKind::KEYWORD_FN),
+    ("lambda", SyntaxKind::KEYWORD_LAMBDA),
+    ("λ", SyntaxKind::KEYWORD_LAMBDA),
+    ("local", SyntaxKind::KEYWORD_LOCAL),
+    ("let", SyntaxKind::KEYWORD_LET),
+    ("set", SyntaxKind::KEYWORD_SET),
+    ("include", SyntaxKind::KEYWORD_INCLUDE),
+    ("accumulate", SyntaxKind::KEYWORD_ACCUMULATE),
+    ("catch", SyntaxKind::KEYWORD_CATCH),
+    ("collect", SyntaxKind::KEYWORD_COLLECT),
+    ("do", SyntaxKind::KEYWORD_DO),
+    ("doto", SyntaxKind::KEYWORD_DOTO),
+    ("each", SyntaxKind::KEYWORD_EACH),
+    ("eval-compiler", SyntaxKind::KEYWORD_EVAL_COMPILER),
+    ("for", SyntaxKind::KEYWORD_FOR),
+    ("global", SyntaxKind::KEYWORD_GLOBAL),
+    ("icollect", SyntaxKind::KEYWORD_ICOLLECT),
+    ("if", SyntaxKind::KEYWORD_IF),
+    ("import-macros", SyntaxKind::KEYWORD_IMPORT_MACROS),
+    (":into", SyntaxKind::KEYWORD_INTO),
+    ("&into", SyntaxKind::KEYWORD_INTO),
+    ("lua", SyntaxKind::KEYWORD_LUA),
+    ("macro", SyntaxKind::KEYWORD_MACRO),
+    ("macrodebug", SyntaxKind::KEYWORD_MACRODEBUG),
+    ("macros", SyntaxKind::KEYWORD_MACROS),
+    ("match", SyntaxKind::KEYWORD_MATCH),
+    ("match-try", SyntaxKind::KEYWORD_MATCH_TRY),
+    ("partial", SyntaxKind::KEYWORD_PARTIAL),
+    ("pick-args", SyntaxKind::KEYWORD_PICK_ARGS),
+    ("values", SyntaxKind::KEYWORD_VALUES),
+    ("pick-values", SyntaxKind::KEYWORD_PICK_VALUES),
+    ("require-macros", SyntaxKind::KEYWORD_REQUIRE_MACROS),
+    ("tset", SyntaxKind::KEYWORD_TSET),
+    (":until", SyntaxKind::KEYWORD_UNTIL),
+    ("&until", SyntaxKind::KEYWORD_UNTIL),
+    ("var", SyntaxKind::KEYWORD_VAR),
+    ("when", SyntaxKind::KEYWORD_WHEN),
+    ("where", SyntaxKind::KEYWORD_WHERE),
+    ("while", SyntaxKind::KEYWORD_WHILE),
+    ("with-open", SyntaxKind::KEYWORD_WITH_OPEN),
+];
 
 impl From<u16> for SyntaxKind {
     #[inline]
@@ -518,141 +414,5 @@ impl From<u16> for SyntaxKind {
 impl From<SyntaxKind> for rowan::SyntaxKind {
     fn from(kind: SyntaxKind) -> Self {
         Self(kind as u16)
-    }
-}
-
-pub(crate) fn validata_symbol(symbol: &str) -> bool {
-    let mut lexer = SyntaxKind::lexer(symbol);
-    if let Some(token) = lexer.next() {
-        if token != SyntaxKind::SYMBOL {
-            return false;
-        }
-        let text = lexer.slice();
-        for c in text.chars() {
-            if c == '.' || c == ':' {
-                return false;
-            }
-        }
-        if lexer.next().is_some() {
-            return false;
-        }
-        return !Vec::from(include!("static/reserved")).contains(&text);
-    }
-    false
-}
-
-#[cfg(test)]
-mod tests {
-    use core::ops::Range;
-
-    use super::*;
-
-    fn assert_lex(text: &str, tokens: &[(SyntaxKind, &str, Range<usize>)]) {
-        let mut lex = SyntaxKind::lexer(text);
-        tokens.iter().for_each(|token| {
-            let mut n = lex.next();
-            if n == Some(SyntaxKind::WHITESPACE) {
-                n = lex.next();
-            }
-            assert_eq!(n, Some(token.0));
-            assert_eq!(lex.slice(), token.1);
-            assert_eq!(lex.span(), token.2);
-        });
-        assert_eq!(lex.next(), None);
-    }
-
-    #[test]
-    fn symbol() {
-        assert_lex(
-            "?我❤️logos#$%^*-+=/|\\ local locals :into :intobreach logos:into \
-             _",
-            &[
-                (SyntaxKind::SYMBOL, "?我❤️logos#$%^*-+=/|\\", 00..26),
-                (SyntaxKind::KEYWORD_LOCAL, "local", 27..32),
-                (SyntaxKind::SYMBOL, "locals", 33..39),
-                (SyntaxKind::KEYWORD_INTO, ":into", 40..45),
-                (SyntaxKind::COLON_STRING, ":intobreach", 46..57),
-                (SyntaxKind::SYMBOL, "logos:into", 58..68),
-                (SyntaxKind::SYMBOL, "_", 69..70),
-            ],
-        );
-    }
-
-    #[test]
-    fn number() {
-        assert_lex("+123 1.23 -1_._2__3E2_ .1", &[
-            (SyntaxKind::INTEGER, "+123", 0..4),
-            (SyntaxKind::FLOAT, "1.23", 5..9),
-            (SyntaxKind::FLOAT, "-1_._2__3E2_", 10..22),
-            (SyntaxKind::FLOAT, ".1", 23..25),
-        ]);
-    }
-
-    #[ignore = "FIXME"]
-    #[test]
-    fn _number() {
-        assert_lex("+_1.", &[(SyntaxKind::FLOAT, "+_1.", 0..4)]);
-    }
-
-    #[test]
-    fn string() {
-        assert_lex(
-            r#" "logos\"" "multi
-                          lines" :https://github.com/maciejhirsz/logos"#,
-            &[
-                (SyntaxKind::QUOTE_STRING, r#""logos\"""#, 1..10),
-                (
-                    SyntaxKind::QUOTE_STRING,
-                    "\"multi
-                          lines\"",
-                    11..50,
-                ),
-                (
-                    SyntaxKind::COLON_STRING,
-                    ":https://github.com/maciejhirsz/logos",
-                    51..88,
-                ),
-            ],
-        );
-    }
-
-    #[test]
-    fn list() {
-        assert_lex("(-> false (not) (#$) ((fn [x] (# x))))", &[
-            (SyntaxKind::L_PAREN, "(", 0..1),
-            (SyntaxKind::THREAD, "->", 1..3),
-            (SyntaxKind::BOOL, "false", 4..9),
-            (SyntaxKind::L_PAREN, "(", 10..11),
-            (SyntaxKind::OPERATOR, "not", 11..14),
-            (SyntaxKind::R_PAREN, ")", 14..15),
-            (SyntaxKind::L_PAREN, "(", 16..17),
-            (SyntaxKind::HASHFN, "#", 17..18),
-            (SyntaxKind::SYMBOL, "$", 18..19),
-            (SyntaxKind::R_PAREN, ")", 19..20),
-            (SyntaxKind::L_PAREN, "(", 21..22),
-            (SyntaxKind::L_PAREN, "(", 22..23),
-            (SyntaxKind::KEYWORD_FN, "fn", 23..25),
-            (SyntaxKind::L_BRACKET, "[", 26..27),
-            (SyntaxKind::SYMBOL, "x", 27..28),
-            (SyntaxKind::R_BRACKET, "]", 28..29),
-            (SyntaxKind::L_PAREN, "(", 30..31),
-            (SyntaxKind::LENGTH, "# ", 31..33),
-            (SyntaxKind::SYMBOL, "x", 33..34),
-            (SyntaxKind::R_PAREN, ")", 34..35),
-            (SyntaxKind::R_PAREN, ")", 35..36),
-            (SyntaxKind::R_PAREN, ")", 36..37),
-            (SyntaxKind::R_PAREN, ")", 37..38),
-        ]);
-    }
-
-    #[test]
-    fn comment() {
-        assert_lex("(print :logos; this is comment)\n\n)", &[
-            (SyntaxKind::L_PAREN, "(", 0..1),
-            (SyntaxKind::SYMBOL, "print", 1..6),
-            (SyntaxKind::COLON_STRING, ":logos", 7..13),
-            (SyntaxKind::COMMENT, "; this is comment)\n", 13..32),
-            (SyntaxKind::R_PAREN, ")", 33..34),
-        ]);
     }
 }

@@ -8,29 +8,21 @@ use std::collections::VecDeque;
 
 use bnf::{Notation::*, Rule};
 use helper::*;
-use logos::{Lexer, Logos};
 use rowan::{GreenNode, GreenNodeBuilder};
 use sets::TokenSet;
 
 use crate::{
     errors::{Error, ErrorKind::*},
+    lexer::{Lexer, Token},
     syntax::lists::*,
     SyntaxKind::{self, *},
 };
 
-#[derive(Debug, Clone, PartialEq, Eq, Hash)]
-struct Token {
-    kind: SyntaxKind,
-    text: String,
-    range: logos::Span,
-}
-
-#[derive(Debug)]
 pub struct Parser<'p> {
     rule_stack: Vec<Rule>,
     token_queue: VecDeque<Token>,
 
-    lexer: Lexer<'p, SyntaxKind>,
+    lexer: Lexer<'p>,
     builder: GreenNodeBuilder<'p>,
     errors: Vec<Error>,
 }
@@ -42,23 +34,20 @@ pub struct Parsed {
 }
 
 impl<'p> Parser<'p> {
-    pub fn new(source: &'p str) -> Self {
+    pub fn new(source: impl Iterator<Item = char> + 'p) -> Self {
         Parser {
             rule_stack: vec![],
             token_queue: VecDeque::<Token>::new(),
 
-            lexer: SyntaxKind::lexer(source),
+            lexer: Lexer::new(Box::new(source)),
             builder: Default::default(),
             errors: Default::default(),
         }
     }
 
     fn lex_next(&mut self) -> Token {
-        Token {
-            kind: self.lexer.next().unwrap_or(END),
-            text: self.lexer.slice().to_owned(),
-            range: self.lexer.span(),
-        }
+        let span = self.lexer.next().unwrap();
+        Token { kind: span.kind, text: span.text, range: span.range }
     }
 
     fn step(&mut self) {
@@ -919,7 +908,7 @@ mod tests {
             env!("CARGO_MANIFEST_DIR"),
             "/testdata/parser/raw.fnl"
         ));
-        let parser = Parser::new(text);
+        let parser = Parser::new(text.chars());
         let syntax_node = SyntaxNode::new_root(parser.parse().green_node);
         assert_eq!(
             format!("{:#?}", syntax_node),
@@ -933,20 +922,20 @@ mod tests {
     #[test]
     fn symbol_ok() {
         let text = "x x.1 x.1.2 x.1.2:3 x:3";
-        let parser = Parser::new(text);
+        let parser = Parser::new(text.chars());
         assert_eq!(parser.parse().errors, vec![]);
     }
 
     #[test]
     fn symbol_error() {
         let text = "x. x:";
-        let parser = Parser::new(text);
+        let parser = Parser::new(text.chars());
         assert_eq!(parser.parse().errors, vec![
             Error::new(TextRange::new(1.into(), 2.into()), InvalidSymbol),
             Error::new(TextRange::new(4.into(), 5.into()), InvalidSymbol),
         ]);
         let text = "x.1:2.3 x.1..2:3 x.1:1:2";
-        let parser = Parser::new(text);
+        let parser = Parser::new(text.chars());
         assert_eq!(parser.parse().errors, vec![
             Error::new(TextRange::new(3.into(), 7.into()), InvalidSymbol),
             Error::new(TextRange::new(11.into(), 16.into()), InvalidSymbol),
@@ -959,21 +948,21 @@ mod tests {
         // Who would go crazy for this grammar?
         let text = "(local x :name)
             (let [ {(((x))) {:name value}} { :name {x 3} } ] (print value))";
-        let parser = Parser::new(text);
+        let parser = Parser::new(text.chars());
         assert!(parser.parse().errors.is_empty())
     }
 
     #[test]
     fn r#macro() {
         let text = "(: (. vim.opt ,(name:sub 1 -2)) :append)";
-        let parser = Parser::new(text);
+        let parser = Parser::new(text.chars());
         assert!(parser.parse().errors.is_empty())
     }
 
     #[test]
     fn errors() {
         let text = "(with-open 1.1] [a])";
-        let parser = Parser::new(text);
+        let parser = Parser::new(text.chars());
         let parsed = parser.parse();
         assert_eq!(parsed.errors, vec![
             Error::new(
@@ -994,14 +983,14 @@ mod tests {
     #[test]
     fn incomplete() {
         let text = "(for [i 1 128 &until ] (set x (+ x i)))";
-        let parser = Parser::new(text);
+        let parser = Parser::new(text.chars());
         let parsed = parser.parse();
         assert_eq!(parsed.errors, vec![Error::new(
             TextRange::new(21.into(), 22.into()),
             Unterminated(N_UNTIL_CLAUSE)
         ),]);
         let text = "(let [{: x} {:x :3} (print x))";
-        let parser = Parser::new(text);
+        let parser = Parser::new(text.chars());
         let parsed = parser.parse();
         assert_eq!(parsed.errors, vec![Error::new(
             TextRange::new(29.into(), 30.into()),
@@ -1012,7 +1001,7 @@ mod tests {
     #[test]
     fn missing_delimiter() {
         let text = "(x";
-        let parser = Parser::new(text);
+        let parser = Parser::new(text.chars());
         let parsed = parser.parse();
         assert_eq!(parsed.errors, vec![
             Error::new(TextRange::new(0.into(), 1.into()), Dismatched),

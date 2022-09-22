@@ -312,7 +312,7 @@ impl Backend {
             globals.insert(global.clone());
         }
 
-        let ast = fennel_parser::parse(&text, globals);
+        let ast = fennel_parser::parse(text.chars(), globals);
         self.publish_diagnostics(
             &doc,
             uri.clone(),

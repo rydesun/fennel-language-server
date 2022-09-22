@@ -4,5 +4,5 @@ version = "0.1.0"
 edition = "2021"
 
 [dependencies]
-logos = "0.12.1"
+regex = { version = "1.6.0", default-features = false, features = ["std"] }
 rowan = "0.15.8"

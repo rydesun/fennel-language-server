@@ -1,5 +1,6 @@
 mod ast;
 mod errors;
+mod lexer;
 mod parser;
 mod syntax;
 
@@ -29,7 +30,10 @@ type SyntaxNode = rowan::SyntaxNode<FennelLanguage>;
 type SyntaxToken = rowan::SyntaxToken<FennelLanguage>;
 type SyntaxElement = rowan::SyntaxElement<FennelLanguage>;
 
-pub fn parse(text: &str, globals: HashSet<String>) -> ast::Ast {
-    let parsed = parser::Parser::new(text).parse();
+pub fn parse(
+    text: impl Iterator<Item = char>,
+    globals: HashSet<String>,
+) -> ast::Ast {
+    let parsed = parser::Parser::new(Box::new(text)).parse();
     ast::Ast::new(parsed.green_node, parsed.errors, globals)
 }
