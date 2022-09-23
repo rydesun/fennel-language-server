@@ -1,5 +1,6 @@
 use std::{collections::HashMap, ops::Range};
 
+use once_cell::sync::Lazy;
 use regex::Regex;
 
 use crate::syntax::SyntaxKind;
@@ -28,13 +29,6 @@ pub(crate) struct Lexer<'a> {
 
     current: String,
     peek: Option<char>,
-
-    table: HashMap<String, SyntaxKind>,
-    bound: Vec<char>,
-    re_integer: Regex,
-    re_float: Regex,
-    re_colon_string: Regex,
-    re_symbol: Regex,
 }
 
 impl<'a> Lexer<'a> {
@@ -42,37 +36,42 @@ impl<'a> Lexer<'a> {
         mut source: Box<dyn Iterator<Item = char> + 'a>,
     ) -> Self {
         let peek = source.next();
-        let mut table: HashMap<String, SyntaxKind> = HashMap::new();
-        crate::syntax::TOEKN.iter().for_each(|(t, s)| {
-            table.insert(t.to_string(), *s);
-        });
 
-        let re_float = format!(
-            "^({}|{}|{})({})?$",
-            r"[+-]?(0x)?\.[0-9][0-9_]*",
-            r"[+-]?[0-9]+[0-9_]*\.?[0-9_]*",
-            r"[+-]?0x[0-9a-f]+[0-9a-f_]*\.?[0-9_]*",
-            r"[eE][+-]?[0-9_]+"
-        );
-        let re_integer = format!("^{}$", r#"[+-]?(0x)?[0-9][0-9_]*"#);
-        let re_colon_string = format!("^{}$", r#":[^"'~;@]+"#);
-        let re_symbol = format!("^{}$", r#"[^.:#"'~;,@`&][^"'~;,@`&]*"#);
-
-        Self {
-            source,
-            offset: 0,
-
-            current: String::new(),
-            peek,
-            table,
-            bound: vec!['(', ')', '[', ']', '{', '}', ',', '`'],
-            re_float: Regex::new(&re_float).unwrap(),
-            re_integer: Regex::new(&re_integer).unwrap(),
-            re_colon_string: Regex::new(&re_colon_string).unwrap(),
-            re_symbol: Regex::new(&re_symbol).unwrap(),
-        }
+        Self { source, offset: 0, current: String::new(), peek }
     }
 }
+
+static TABLE: Lazy<HashMap<String, SyntaxKind>> = Lazy::new(|| {
+    let mut table: HashMap<String, SyntaxKind> = HashMap::new();
+    crate::syntax::TOEKN.iter().for_each(|(t, s)| {
+        table.insert(t.to_string(), *s);
+    });
+    table
+});
+
+static RE_FLOAT: Lazy<Regex> = Lazy::new(|| {
+    Regex::new(&format!(
+        "^({}|{}|{})({})?$",
+        r"[+-]?(0x)?\.[0-9][0-9_]*",
+        r"[+-]?[0-9]+[0-9_]*\.?[0-9_]*",
+        r"[+-]?0x[0-9a-f]+[0-9a-f_]*\.?[0-9_]*",
+        r"[eE][+-]?[0-9_]+"
+    ))
+    .unwrap()
+});
+
+const BOUND: [char; 8] = ['(', ')', '[', ']', '{', '}', ',', '`'];
+
+static RE_INTEGER: Lazy<Regex> = Lazy::new(|| {
+    Regex::new(&format!("^{}$", r#"[+-]?(0x)?[0-9][0-9_]*"#)).unwrap()
+});
+
+static RE_COLON_STRING: Lazy<Regex> =
+    Lazy::new(|| Regex::new(&format!("^{}$", r#":[^"'~;@]+"#)).unwrap());
+
+static RE_SYMBOL: Lazy<Regex> = Lazy::new(|| {
+    Regex::new(&format!("^{}$", r#"[^.:#"'~;,@`&][^"'~;,@`&]*"#)).unwrap()
+});
 
 impl<'a> Iterator for Lexer<'a> {
     type Item = Token;
@@ -93,11 +92,11 @@ impl<'a> Iterator for Lexer<'a> {
         }
 
         let head = self.current.chars().next().unwrap();
-        let head_kind = kind_by_char(head, &self.bound);
+        let head_kind = kind_by_char(head);
         let token_kind = match head_kind {
             TokenKind::Word => {
                 for c in self.source.by_ref() {
-                    let cur_kind = kind_by_char(c, &self.bound);
+                    let cur_kind = kind_by_char(c);
                     if head_kind == cur_kind || cur_kind == TokenKind::Hash {
                         self.current.push(c);
                     } else {
@@ -105,15 +104,15 @@ impl<'a> Iterator for Lexer<'a> {
                         break;
                     }
                 }
-                if let Some(kind) = self.table.get(&self.current) {
+                if let Some(kind) = TABLE.get(&self.current) {
                     *kind
-                } else if self.re_integer.is_match(&self.current) {
+                } else if RE_INTEGER.is_match(&self.current) {
                     SyntaxKind::INTEGER
-                } else if self.re_float.is_match(&self.current) {
+                } else if RE_FLOAT.is_match(&self.current) {
                     SyntaxKind::FLOAT
-                } else if self.re_symbol.is_match(&self.current) {
+                } else if RE_SYMBOL.is_match(&self.current) {
                     SyntaxKind::SYMBOL
-                } else if self.re_colon_string.is_match(&self.current) {
+                } else if RE_COLON_STRING.is_match(&self.current) {
                     SyntaxKind::COLON_STRING
                 } else {
                     SyntaxKind::ERROR
@@ -173,7 +172,7 @@ impl<'a> Iterator for Lexer<'a> {
             }
             TokenKind::Whitespace => {
                 for c in self.source.by_ref() {
-                    if head_kind == kind_by_char(c, &self.bound) {
+                    if head_kind == kind_by_char(c) {
                         self.current.push(c);
                     } else {
                         self.peek = Some(c);
@@ -233,7 +232,7 @@ enum TokenKind {
     Hash,
 }
 
-fn kind_by_char(c: char, bound: &[char]) -> TokenKind {
+fn kind_by_char(c: char) -> TokenKind {
     if c.is_whitespace() {
         TokenKind::Whitespace
     } else if c == ';' {
@@ -242,7 +241,7 @@ fn kind_by_char(c: char, bound: &[char]) -> TokenKind {
         TokenKind::QuoteString
     } else if c == '#' {
         TokenKind::Hash
-    } else if bound.contains(&c) {
+    } else if BOUND.contains(&c) {
         TokenKind::Bound
     } else {
         TokenKind::Word
