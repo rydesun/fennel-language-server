@@ -1,3 +1,5 @@
+use std::collections::HashMap;
+
 use rowan::{ast::AstNode, TextRange};
 
 use crate::{
@@ -71,20 +73,42 @@ ast_assoc!(BindingSymbol, [LeftSymbol, LeftRightSymbol]);
 ast_assoc!(Symbol, [LeftSymbol, LeftRightSymbol, LeftOrRightSymbol]);
 
 impl Symbol {
-    pub(crate) fn id(&self) -> Option<(models::Token, bool)> {
+    pub(crate) fn id(&self) -> Option<(models::Token, bool, bool)> {
         let mut nodes = self.syntax().children_with_tokens();
         let first_node = nodes.next()?;
         let first_token = first_node.as_token()?;
         let prefix_is_comma = first_token.kind() == SyntaxKind::COMMA;
         if prefix_is_comma {
-            Some((nodes.next()?.as_token()?.to_owned().into(), true))
+            let first_token = nodes.next()?;
+            Some((
+                first_token.as_token()?.to_owned().into(),
+                true,
+                nodes.next().is_none(),
+            ))
         } else {
-            Some((first_token.to_owned().into(), false))
+            Some((
+                first_token.to_owned().into(),
+                false,
+                nodes.next().is_none(),
+            ))
         }
     }
 }
 
 impl Root {
+    pub(crate) fn return_value(&self) -> Option<EvalAst> {
+        let last_node = self.syntax().children().last()?;
+        eval::EvalAst::cast(last_node)
+    }
+
+    pub(crate) fn return_kv_table(
+        &self,
+    ) -> Option<HashMap<String, eval::EvalAst>> {
+        self.return_value()
+            .and_then(|eval_ast| eval_ast.cast_kv_table())
+            .map(|kv_table| kv_table.cast_hashmap())
+    }
+
     pub(crate) fn provide_errors(&self) -> impl Iterator<Item = Error> {
         self.syntax()
             .descendants()
@@ -303,5 +327,36 @@ impl KvTable {
                         .and_then(EvalAst::cast),
                 )
             })
+    }
+
+    // skip non-string key
+    pub(crate) fn cast_hashmap(&self) -> HashMap<String, EvalAst> {
+        let mut res = HashMap::new();
+        for (k, v) in self.iter() {
+            if k.is_none() || v.is_none() {
+                continue;
+            }
+            let (k, v) = (k.unwrap(), v.unwrap());
+            if let Some(key) = k.cast_string() {
+                res.insert(key, v);
+            } else if k.syntax().text() == ":" {
+                let l_r_symbol = match Symbol::cast(v.syntax().clone()) {
+                    Some(n) => n,
+                    None => {
+                        continue;
+                    }
+                };
+                let (key, _, is_pure) = match l_r_symbol.id() {
+                    Some(res) => res,
+                    None => {
+                        continue;
+                    }
+                };
+                if is_pure {
+                    res.insert(key.text, v);
+                }
+            }
+        }
+        res
     }
 }

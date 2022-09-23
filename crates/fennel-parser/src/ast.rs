@@ -7,7 +7,7 @@ mod func;
 pub mod models;
 mod nodes;
 
-use std::collections::HashSet;
+use std::collections::{HashMap, HashSet};
 
 use rowan::{ast::AstNode, GreenNode, TextRange, TextSize};
 
@@ -316,6 +316,15 @@ impl Ast {
 
     pub fn validate_name(&self, name: &str) -> bool {
         validata_symbol(name)
+    }
+
+    #[allow(unused)]
+    pub(crate) fn return_kv_table(
+        &self,
+    ) -> Option<HashMap<String, eval::EvalAst>> {
+        let root =
+            Root::cast(SyntaxNode::new_root(self.root.clone())).unwrap();
+        root.return_kv_table()
     }
 
     fn update_symbols(&mut self) {
@@ -1043,5 +1052,20 @@ mod tests {
                 .docstring(TextRange::new(4.into(), 5.into())),
             Some("helloAgain".to_string()),
         );
+    }
+
+    #[test]
+    fn check_return() {
+        let text = "{local a 1} {:b 2 : a :c d (+ 1 1) 3 none 4}";
+        let map =
+            parse(text.chars(), HashSet::new()).return_kv_table().unwrap();
+        for (k, v) in map.into_iter() {
+            match k.as_str() {
+                "a" => assert_eq!(v.syntax().text(), "a"),
+                "b" => assert_eq!(v.syntax().text(), "2"),
+                "c" => assert_eq!(v.syntax().text(), "d"),
+                n => panic!("Wrong key {}", n),
+            }
+        }
     }
 }

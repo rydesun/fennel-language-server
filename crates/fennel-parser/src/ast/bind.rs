@@ -76,7 +76,7 @@ pub(crate) trait Binding:
 
         // Guess first child is a symbol
         if let Some(symbol) = Symbol::cast(node.first_token()?.parent()?) {
-            let (id, _) = symbol.id()?;
+            let (id, ..) = symbol.id()?;
             // NOTE: should not pretend symbol pairs with value
             let value_node = node.last_child();
             let value = if let Some(override_value_kind) = override_value_kind
@@ -109,7 +109,7 @@ pub(crate) trait Binding:
             .descendants()
             .filter_map(Symbol::cast)
             .filter_map(|n| n.id())
-            .map(|(id, _)| id);
+            .map(|(id, ..)| id);
 
         let symbols = tokens
             .map(|t| models::LSymbol {
