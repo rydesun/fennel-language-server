@@ -462,8 +462,11 @@ impl Ast {
                     SuppressErrorKind::Unterminated => {
                         matches!(e.kind, Unterminated(..))
                     }
-                    SuppressErrorKind::Unexpected => {
+                    SuppressErrorKind::AllUnexpected => {
                         matches!(e.kind, Unexpected(..))
+                    }
+                    SuppressErrorKind::Unexpected(kind) => {
+                        e.kind == Unexpected(*kind)
                     }
                     SuppressErrorKind::Undefined => {
                         matches!(e.kind, Undefined)
@@ -911,6 +914,17 @@ mod tests {
 
     fn definition(text: &str, offset: u32) -> Option<LSymbol> {
         parse(text.chars(), HashSet::new()).definition(offset).map(|(s, _)| s)
+    }
+
+    #[test]
+    fn check_arglist() {
+        let text = "(fn a [] {:fnl/arglist [b c & d]} (+))";
+        assert_eq!(
+            parse(text.chars(), HashSet::new())
+                .errors()
+                .collect::<Vec<&Error>>(),
+            Vec::<&Error>::new()
+        );
     }
 
     #[test]

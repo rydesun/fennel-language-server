@@ -123,7 +123,7 @@ impl Root {
         self.syntax()
             .descendants()
             .filter_map(Suppress::cast)
-            .map(|n| n.suppress())
+            .flat_map(|n| n.suppress())
     }
 
     pub(crate) fn r_symbols(&self) -> Vec<models::RSymbol> {

@@ -300,10 +300,11 @@ pub(crate) enum SuppressErrorKind {
     Unused,
     Unterminated,
     Undefined,
-    Unexpected,
+    AllUnexpected,
+    Unexpected(SyntaxKind),
 }
 
-ast_assoc!(Suppress, [MacroQuote]);
+ast_assoc!(Suppress, [MacroQuote, FuncAst]);
 
 impl MacroQuote {
     pub(crate) fn suppress(&self) -> (TextRange, Vec<SuppressErrorKind>) {
@@ -312,15 +313,43 @@ impl MacroQuote {
             SuppressErrorKind::Unused,
             SuppressErrorKind::Unterminated,
             SuppressErrorKind::Undefined,
-            SuppressErrorKind::Unexpected,
+            SuppressErrorKind::AllUnexpected,
         ])
     }
 }
 
+impl FuncAst {
+    pub(crate) fn suppress(
+        &self,
+    ) -> Option<Vec<(TextRange, Vec<SuppressErrorKind>)>> {
+        let metadata =
+            self.metadata().and_then(EvalAst::cast)?.cast_kv_table()?;
+        let res = metadata
+            .iter()
+            .filter_map(|(k, v)| {
+                if k.and_then(|k| k.cast_string())
+                    == Some("fnl/arglist".to_string())
+                {
+                    v.map(|args| {
+                        (args.syntax().text_range(), vec![
+                            SuppressErrorKind::Undefined,
+                            SuppressErrorKind::Unexpected(SyntaxKind::CAPTURE),
+                        ])
+                    })
+                } else {
+                    None
+                }
+            })
+            .collect();
+        Some(res)
+    }
+}
+
 impl Suppress {
-    pub(crate) fn suppress(&self) -> (TextRange, Vec<SuppressErrorKind>) {
+    pub(crate) fn suppress(&self) -> Vec<(TextRange, Vec<SuppressErrorKind>)> {
         match self {
-            Self::MacroQuote(n) => n.suppress(),
+            Self::MacroQuote(n) => vec![n.suppress()],
+            Self::FuncAst(n) => n.suppress().unwrap_or_default(),
         }
     }
 }

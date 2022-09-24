@@ -59,7 +59,7 @@ impl FuncAst {
             .and_then(|n| n.into_token())
     }
 
-    pub(crate) fn docstring(&self) -> Option<String> {
+    pub(crate) fn metadata(&self) -> Option<SyntaxNode> {
         let body = self
             .syntax()
             .children()
@@ -68,11 +68,14 @@ impl FuncAst {
         let mut sexp =
             body.children().filter(|n| n.kind() == SyntaxKind::N_SEXP);
 
-        let docstring = sexp.next()?;
+        let metadata = sexp.next()?;
         // docstring can't be last
         sexp.next()?;
+        Some(metadata)
+    }
 
-        let eval = EvalAst::cast(docstring)?;
+    pub(crate) fn docstring(&self) -> Option<String> {
+        let eval = self.metadata().and_then(EvalAst::cast)?;
         match eval.eval_kind() {
             models::ValueKind::KvTable => eval
                 .cast_kv_table()
