@@ -1,8 +1,10 @@
+use std::path::PathBuf;
+
 use fennel_parser::TextRange;
 use ropey::Rope;
 use tower_lsp::{
     jsonrpc::{Error, Result},
-    lsp_types::{Position, Range},
+    lsp_types::{Position, Range, Url},
 };
 
 pub(crate) fn lsp_range(rope: &Rope, range: TextRange) -> Result<Range> {
@@ -51,4 +53,25 @@ pub(crate) fn byte_offset_to_position(
     let start_char = rope.line_to_char(line);
     let column = rope.byte_to_char(offset) - start_char;
     Ok(Position::new(line as u32, column as u32))
+}
+
+pub(crate) fn lsp_range_head() -> Range {
+    Range::new(Position::new(0, 0), Position::new(0, 0))
+}
+
+pub(crate) fn find_file(rel: Url, path: PathBuf) -> Option<Url> {
+    path.to_str()?;
+
+    let check_exist = |ext: &str| -> Option<Url> {
+        if let Ok(url) = rel.join(path.with_extension(ext).to_str().unwrap()) {
+            if std::fs::metadata(url.path())
+                .map(|m| m.is_file())
+                .unwrap_or(false)
+            {
+                return Some(url);
+            }
+        }
+        None
+    };
+    check_exist("lua").or_else(|| check_exist("fnl"))
 }

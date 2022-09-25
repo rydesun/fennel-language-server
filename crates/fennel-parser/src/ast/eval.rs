@@ -1,3 +1,5 @@
+use std::path::PathBuf;
+
 use rowan::ast::AstNode;
 
 use crate::{
@@ -205,6 +207,16 @@ impl Literal {
             }
             _ => None,
         }
+    }
+
+    // TODO: support number
+    pub(crate) fn cast_path(&self) -> Option<PathBuf> {
+        let s = self.cast_string()?;
+        if s.starts_with('/') || s.contains("..") {
+            return None;
+        }
+        let path = PathBuf::from(s.replace('.', "/"));
+        Some(path)
     }
 }
 

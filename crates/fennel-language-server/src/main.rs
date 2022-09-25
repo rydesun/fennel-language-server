@@ -65,11 +65,30 @@ impl tower_lsp::LanguageServer for Backend {
         let doc = self.doc_map.get(&uri).ok_or_else(Error::invalid_request)?;
         let offset = position_to_byte_offset(&doc, position)?;
 
-        if let Some((symbol, _)) = ast.definition(offset) {
-            let range = lsp_range(&doc, symbol.token.range)?;
-            Ok(Some(GotoDefinitionResponse::Scalar(Location::new(uri, range))))
-        } else {
-            Ok(None)
+        match ast.definition(offset) {
+            Some(fennel_parser::Definition::Symbol(symbol, _)) => {
+                let range = lsp_range(&doc, symbol.token.range)?;
+                Ok(Some(GotoDefinitionResponse::Scalar(Location::new(
+                    uri, range,
+                ))))
+            }
+            Some(fennel_parser::Definition::FileSymbol(path, symbol)) => {
+                let range = lsp_range(&doc, symbol.token.range)?;
+                let res = find_file(uri, path).map(|uri| {
+                    GotoDefinitionResponse::Scalar(Location::new(uri, range))
+                });
+                Ok(res)
+            }
+            Some(fennel_parser::Definition::File(path)) => {
+                let res = find_file(uri, path).map(|uri| {
+                    GotoDefinitionResponse::Scalar(Location::new(
+                        uri,
+                        lsp_range_head(),
+                    ))
+                });
+                Ok(res)
+            }
+            None => Ok(None),
         }
     }
 
@@ -136,11 +155,10 @@ impl tower_lsp::LanguageServer for Backend {
         let doc = self.doc_map.get(&uri).ok_or_else(Error::invalid_request)?;
         let offset = position_to_byte_offset(&doc, position)?;
 
-        let definition = ast.definition(offset);
-        if definition.is_none() {
-            return Ok(None);
-        }
-        let (symbol, _) = definition.unwrap();
+        let symbol = match ast.definition(offset) {
+            Some(fennel_parser::Definition::Symbol(symbol, _)) => symbol,
+            _ => return Ok(None),
+        };
         let range = lsp_range(&doc, symbol.token.range)?;
         let text = symbol.token.text;
         let scope_kind = view::scope_kind(symbol.scope.kind);

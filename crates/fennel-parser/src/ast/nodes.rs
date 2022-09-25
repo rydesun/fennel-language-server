@@ -1,4 +1,4 @@
-use std::collections::HashMap;
+use std::{collections::HashMap, path::PathBuf};
 
 use rowan::{ast::AstNode, TextRange};
 
@@ -12,7 +12,7 @@ use crate::{
     },
     Error,
     ErrorKind::*,
-    SyntaxKind, SyntaxNode,
+    SyntaxKind, SyntaxNode, SyntaxToken,
 };
 
 ast_node!(Root, ROOT);
@@ -359,4 +359,54 @@ impl KvTable {
         }
         res
     }
+}
+
+impl SymbolCall {
+    pub(crate) fn call_name(&self) -> Option<String> {
+        self.syntax().first_token().map(|t| t.to_string())
+    }
+
+    pub(crate) fn is_require(&self) -> bool {
+        // TODO: follow symbol
+        self.call_name().map(|name| name == "require").unwrap_or(false)
+    }
+
+    #[allow(unused)]
+    pub(crate) fn require(&self) -> Option<PathBuf> {
+        if self.is_require() {
+            self.syntax()
+                .children()
+                .find_map(|n| Literal::cast(n).and_then(|n| n.cast_path()))
+        } else {
+            None
+        }
+    }
+}
+
+impl TryFrom<SyntaxToken> for Literal {
+    type Error = ();
+
+    fn try_from(token: SyntaxToken) -> Result<Self, Self::Error> {
+        token.parent_ancestors().find_map(Self::cast).ok_or(())
+    }
+}
+
+pub(crate) fn get_ancestor<T: AstNode<Language = crate::FennelLanguage>>(
+    start: &SyntaxNode,
+) -> Option<T> {
+    let mut get_sexp = false;
+    for n in start.ancestors() {
+        if Sexp::can_cast(n.kind()) {
+            if get_sexp {
+                return None;
+            } else {
+                get_sexp = true;
+                continue;
+            }
+        }
+        if let Some(node) = T::cast(n) {
+            return Some(node);
+        }
+    }
+    None
 }

@@ -7,7 +7,10 @@ mod func;
 pub mod models;
 mod nodes;
 
-use std::collections::{HashMap, HashSet};
+use std::{
+    collections::{HashMap, HashSet},
+    path::PathBuf,
+};
 
 use rowan::{ast::AstNode, GreenNode, TextRange, TextSize};
 
@@ -106,22 +109,41 @@ impl Ast {
             .filter(|e| !self.error_is_suppressed(e))
     }
 
-    pub fn definition(&self, offset: u32) -> Option<(models::LSymbol, bool)> {
+    pub fn definition(&self, offset: u32) -> Option<Definition> {
         let root = SyntaxNode::new_root(self.root.clone());
 
         let mut token =
             root.token_at_offset(TextSize::from(offset)).right_biased()?;
+
+        if let Some(path) = TryInto::<nodes::Literal>::try_into(token.clone())
+            .ok()
+            .and_then(|n| {
+                if nodes::get_ancestor::<nodes::SymbolCall>(n.syntax())
+                    .map(|n| n.is_require())
+                    .unwrap_or(false)
+                {
+                    n.cast_path()
+                } else {
+                    None
+                }
+            })
+        {
+            return Some(Definition::File(path));
+        }
+
         if token.kind() == SyntaxKind::COMMA {
             token = token.next_token()?;
         }
         let token_start = token.text_range().start().into();
 
         if let Some(symbol) = self.l_symbol(token_start) {
-            return Some((symbol.clone(), true));
+            return Some(Definition::Symbol(symbol.clone(), true));
         }
 
         let r_symbol = self.r_symbol(token_start)?;
-        self.l_symbol_by_r(r_symbol).found().map(|s| (s.clone(), false))
+        self.l_symbol_by_r(r_symbol)
+            .found()
+            .map(|s| Definition::Symbol(s.clone(), false))
     }
 
     pub fn reference(&self, offset: u32) -> Option<Vec<TextRange>> {
@@ -504,6 +526,13 @@ impl Ast {
 
 type LSymbols<'a> = Box<dyn Iterator<Item = &'a models::LSymbol> + 'a>;
 type Globals = Vec<(models::CompletionKind, Vec<&'static str>)>;
+
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+pub enum Definition {
+    Symbol(models::LSymbol, bool),
+    FileSymbol(PathBuf, models::LSymbol),
+    File(PathBuf),
+}
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 enum FindLSymbol<'a> {
@@ -913,7 +942,12 @@ mod tests {
     }
 
     fn definition(text: &str, offset: u32) -> Option<LSymbol> {
-        parse(text.chars(), HashSet::new()).definition(offset).map(|(s, _)| s)
+        parse(text.chars(), HashSet::new()).definition(offset).and_then(
+            |def| match def {
+                Definition::Symbol(s, _) => Some(s),
+                _ => None,
+            },
+        )
     }
 
     #[test]
@@ -977,6 +1011,16 @@ mod tests {
             definition(text, 29).map(|s| s.token.range),
             Some(TextRange::new(7.into(), 8.into()))
         );
+    }
+
+    #[test]
+    fn definition_file() {
+        let text = "(require :x.a) :x.a";
+        assert_eq!(
+            parse(text.chars(), HashSet::new()).definition(11),
+            Some(Definition::File(PathBuf::from("x/a"))),
+        );
+        assert_eq!(parse(text.chars(), HashSet::new()).definition(17), None);
     }
 
     // seems a fennel compiler error
