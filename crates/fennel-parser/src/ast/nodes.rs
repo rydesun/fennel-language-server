@@ -374,9 +374,8 @@ impl SymbolCall {
     #[allow(unused)]
     pub(crate) fn require(&self) -> Option<PathBuf> {
         if self.is_require() {
-            self.syntax()
-                .children()
-                .find_map(|n| Literal::cast(n).and_then(|n| n.cast_path()))
+            let first_sexp = self.syntax().children().nth(1)?;
+            Literal::cast(first_sexp).and_then(|n| n.cast_path())
         } else {
             None
         }

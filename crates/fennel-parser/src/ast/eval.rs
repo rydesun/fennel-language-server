@@ -209,9 +209,21 @@ impl Literal {
         }
     }
 
-    // TODO: support number
     pub(crate) fn cast_path(&self) -> Option<PathBuf> {
-        let s = self.cast_string()?;
+        let token = self.syntax().first_token()?;
+        let s = match token.kind() {
+            SyntaxKind::INTEGER => token.text().to_string(),
+            SyntaxKind::FLOAT => {
+                let token = token.text().to_string();
+                // TODO: support hex and exponent
+                if token.chars().any(|c| !c.is_ascii_digit() && c != '.') {
+                    return None;
+                } else {
+                    token
+                }
+            }
+            _ => self.cast_string()?,
+        };
         if s.starts_with('/') || s.contains("..") {
             return None;
         }
