@@ -202,7 +202,16 @@ impl<'a> Iterator for Lexer<'a> {
     }
 }
 
-pub(crate) fn validata_symbol(symbol: &str) -> bool {
+pub(crate) fn validate(s: &str, kind: SyntaxKind) -> bool {
+    let mut lexer = Lexer::new(Box::new(s.chars()));
+    if let Some(token) = lexer.next() {
+        token.kind == kind && lexer.next().unwrap().kind == SyntaxKind::END
+    } else {
+        false
+    }
+}
+
+pub(crate) fn validate_symbol(symbol: &str) -> bool {
     let mut lexer = Lexer::new(Box::new(symbol.chars()));
     if let Some(token) = lexer.next() {
         if token.kind != SyntaxKind::SYMBOL {

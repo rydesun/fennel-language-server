@@ -468,7 +468,7 @@ impl Binding for Macros {
             .iter()
             .filter_map(|(k, v)| {
                 let key = k?;
-                let text = key.cast_string()?;
+                let text = key.cast_string()?.0;
                 Some(models::LSymbol {
                     token: models::Token {
                         text,

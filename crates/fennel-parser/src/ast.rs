@@ -19,9 +19,7 @@ use self::{
     error::SuppressErrorKind,
     nodes::Root,
 };
-use crate::{
-    lexer::validata_symbol, Error, ErrorKind::*, SyntaxKind, SyntaxNode,
-};
+use crate::{lexer, Error, ErrorKind::*, SyntaxKind, SyntaxNode};
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Ast {
@@ -309,6 +307,39 @@ impl Ast {
         (Box::new(self.l_symbols.range(offset)), globals)
     }
 
+    pub fn hint_action(&self, offset: u32) -> Vec<(TextRange, Action)> {
+        let root = SyntaxNode::new_root(self.root.clone());
+        let token = match root
+            .token_at_offset(TextSize::from(offset))
+            .right_biased()
+        {
+            Some(n) => n,
+            None => return vec![],
+        };
+        let range = token.text_range();
+        let mut res = vec![];
+        if let Ok(n) = TryInto::<nodes::Literal>::try_into(token) {
+            if let Some((s, kind)) = n.cast_string() {
+                match kind {
+                    eval::StringKind::Quote => {
+                        let new_s = format!(":{}", s);
+                        if self.validate_colon_string(&new_s) {
+                            res.push((
+                                range,
+                                Action::ConvertToColonString(new_s),
+                            ))
+                        }
+                    }
+                    eval::StringKind::Colon => res.push((
+                        range,
+                        Action::ConvertToQuoteString(format!("\"{}\"", s)),
+                    )),
+                }
+            }
+        }
+        res
+    }
+
     pub fn literal_value(&self, value: models::Value) -> Option<String> {
         if !matches!(
             value.kind,
@@ -337,7 +368,11 @@ impl Ast {
     }
 
     pub fn validate_name(&self, name: &str) -> bool {
-        validata_symbol(name)
+        lexer::validate_symbol(name)
+    }
+
+    pub fn validate_colon_string(&self, s: &str) -> bool {
+        lexer::validate(s, SyntaxKind::COLON_STRING)
     }
 
     #[allow(unused)]
@@ -532,6 +567,12 @@ pub enum Definition {
     Symbol(models::LSymbol, bool),
     FileSymbol(PathBuf, models::LSymbol),
     File(PathBuf),
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
+pub enum Action {
+    ConvertToColonString(String),
+    ConvertToQuoteString(String),
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
@@ -1094,6 +1135,22 @@ mod tests {
             })
             .unwrap()
             .contains(&"lambda"));
+    }
+
+    #[test]
+    fn action() {
+        let text = r#":a ":b" "a b" "#;
+        let ast = parse(text.chars(), HashSet::new());
+
+        assert_eq!(ast.hint_action(0), vec![(
+            TextRange::new(0.into(), 2.into()),
+            Action::ConvertToQuoteString("\"a\"".to_string()),
+        )]);
+        assert_eq!(ast.hint_action(4), vec![(
+            TextRange::new(3.into(), 7.into()),
+            Action::ConvertToColonString("::b".to_string()),
+        )]);
+        assert_eq!(ast.hint_action(9), vec![]);
     }
 
     #[test]

@@ -121,7 +121,7 @@ impl EvalAst {
 }
 
 impl EvalAst {
-    pub fn cast_string(&self) -> Option<String> {
+    pub fn cast_string(&self) -> Option<(String, StringKind)> {
         match self {
             Self::Sexp(n) => n.cast_string(),
             Self::Atom(n) => n.cast_string(),
@@ -144,7 +144,7 @@ impl Sexp {
         EvalAst::cast(self.0.first_child()?).map(|n| n.eval_kind())
     }
 
-    pub fn cast_string(&self) -> Option<String> {
+    pub fn cast_string(&self) -> Option<(String, StringKind)> {
         EvalAst::cast(self.0.first_child()?).and_then(|n| n.cast_string())
     }
 
@@ -165,7 +165,7 @@ impl Atom {
         }
     }
 
-    pub fn cast_string(&self) -> Option<String> {
+    pub fn cast_string(&self) -> Option<(String, StringKind)> {
         let child = self.0.first_child()?;
         match child.kind() {
             SyntaxKind::N_LITERAL => Literal(child).cast_string(),
@@ -197,13 +197,15 @@ impl Literal {
         }
     }
 
-    pub(crate) fn cast_string(&self) -> Option<String> {
+    pub(crate) fn cast_string(&self) -> Option<(String, StringKind)> {
         let token = self.syntax().first_token()?;
         match token.kind() {
-            SyntaxKind::COLON_STRING => Some(token.text()[1..].to_string()),
+            SyntaxKind::COLON_STRING => {
+                Some((token.text()[1..].to_string(), StringKind::Colon))
+            }
             SyntaxKind::QUOTE_STRING => {
                 let text = token.text();
-                Some(text[1..text.len() - 1].to_string())
+                Some((text[1..text.len() - 1].to_string(), StringKind::Quote))
             }
             _ => None,
         }
@@ -225,7 +227,7 @@ impl Literal {
                     token
                 }
             }
-            _ => self.cast_string()?,
+            _ => self.cast_string()?.0,
         };
         if s.starts_with('.') || s.ends_with('.') || s.contains("..") {
             return None;
@@ -289,4 +291,10 @@ impl RightSymbol {
             Some(models::ValueKind::Symbol)
         }
     }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
+pub(crate) enum StringKind {
+    Colon,
+    Quote,
 }

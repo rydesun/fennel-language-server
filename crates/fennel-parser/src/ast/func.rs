@@ -80,8 +80,9 @@ impl FuncAst {
             models::ValueKind::KvTable => eval
                 .cast_kv_table()
                 .and_then(|t| t.get("fnl/docstring".to_owned()))
-                .and_then(|eval| eval.cast_string()),
-            models::ValueKind::String => eval.cast_string(),
+                .and_then(|eval| eval.cast_string())
+                .map(|(s, _)| s),
+            models::ValueKind::String => eval.cast_string().map(|(s, _)| s),
             _ => None,
         }
     }

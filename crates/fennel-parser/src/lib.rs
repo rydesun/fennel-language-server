@@ -6,7 +6,7 @@ mod syntax;
 
 use std::collections::HashSet;
 
-pub use ast::{models, Ast, Definition};
+pub use ast::{models, Action, Ast, Definition};
 pub use errors::{Error, ErrorKind};
 pub use rowan::TextRange;
 pub(crate) use syntax::SyntaxKind;

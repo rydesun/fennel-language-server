@@ -50,6 +50,9 @@ impl tower_lsp::LanguageServer for Backend {
                     trigger_characters: Some(vec![".".into(), ":".into()]),
                     ..Default::default()
                 }),
+                code_action_provider: Some(
+                    CodeActionProviderCapability::Simple(true),
+                ),
                 ..Default::default()
             },
         })
@@ -235,6 +238,53 @@ impl tower_lsp::LanguageServer for Backend {
         });
         let completions = symbols.chain(globals).collect();
         Ok(Some(CompletionResponse::Array(completions)))
+    }
+
+    async fn code_action(
+        &self,
+        params: CodeActionParams,
+    ) -> Result<Option<CodeActionResponse>> {
+        let uri = params.text_document.uri;
+        let ast = self.ast_map.get(&uri).ok_or_else(Error::invalid_request)?;
+        let doc = self.doc_map.get(&uri).ok_or_else(Error::invalid_request)?;
+        let offset = position_to_byte_offset(&doc, params.range.start)?;
+
+        let actions = ast.hint_action(offset);
+        let res = actions.iter().filter_map(|(range, action)| {
+            let range = lsp_range(&doc, *range).ok()?;
+            let action = match action {
+                fennel_parser::Action::ConvertToColonString(s) => {
+                    let mut map = HashMap::new();
+                    map.insert(uri.clone(), vec![TextEdit::new(
+                        range,
+                        s.to_owned(),
+                    )]);
+                    CodeActionOrCommand::CodeAction(CodeAction {
+                        title: "Convert string to start with a colon"
+                            .to_string(),
+                        kind: Some(CodeActionKind::REFACTOR),
+                        edit: Some(WorkspaceEdit::new(map)),
+                        ..Default::default()
+                    })
+                }
+                fennel_parser::Action::ConvertToQuoteString(s) => {
+                    let mut map = HashMap::new();
+                    map.insert(uri.clone(), vec![TextEdit::new(
+                        range,
+                        s.to_owned(),
+                    )]);
+                    CodeActionOrCommand::CodeAction(CodeAction {
+                        title: "Convert string to double-quotes form"
+                            .to_string(),
+                        kind: Some(CodeActionKind::REFACTOR),
+                        edit: Some(WorkspaceEdit::new(map)),
+                        ..Default::default()
+                    })
+                }
+            };
+            Some(action)
+        });
+        Ok(Some(res.collect()))
     }
 
     async fn initialized(&self, _: InitializedParams) {

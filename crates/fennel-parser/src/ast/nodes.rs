@@ -299,7 +299,7 @@ impl KvTable {
                     .first_child()
                     .and_then(eval::EvalAst::cast)
                     .and_then(|n| n.cast_string());
-                if Some(&key) == k_str.as_ref() {
+                if k_str.map_or(false, |(s, _)| s == key) {
                     value_node
                         .and_then(|v| v.first_child())
                         .and_then(EvalAst::cast)
@@ -337,7 +337,7 @@ impl KvTable {
                 continue;
             }
             let (k, v) = (k.unwrap(), v.unwrap());
-            if let Some(key) = k.cast_string() {
+            if let Some((key, _)) = k.cast_string() {
                 res.insert(key, v);
             } else if k.syntax().text() == ":" {
                 let l_r_symbol = match Symbol::cast(v.syntax().clone()) {

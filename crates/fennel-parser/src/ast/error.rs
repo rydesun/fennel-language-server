@@ -328,7 +328,7 @@ impl FuncAst {
             .iter()
             .filter_map(|(k, v)| {
                 if k.and_then(|k| k.cast_string())
-                    == Some("fnl/arglist".to_string())
+                    .map_or(false, |(s, _)| s == "fnl/arglist")
                 {
                     v.map(|args| {
                         (args.syntax().text_range(), vec![
