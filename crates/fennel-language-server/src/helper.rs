@@ -62,7 +62,8 @@ pub(crate) fn lsp_range_head() -> Range {
 pub(crate) fn find_file(rel: Url, path: PathBuf) -> Option<Url> {
     path.to_str()?;
 
-    let check_exist = |ext: &str| -> Option<Url> {
+    let check_exist = |ext: &str, init: bool| -> Option<Url> {
+        let path = if init { path.join("init") } else { path.clone() };
         if let Ok(url) = rel.join(path.with_extension(ext).to_str().unwrap()) {
             if std::fs::metadata(url.path())
                 .map(|m| m.is_file())
@@ -73,5 +74,9 @@ pub(crate) fn find_file(rel: Url, path: PathBuf) -> Option<Url> {
         }
         None
     };
-    check_exist("lua").or_else(|| check_exist("fnl"))
+    check_exist("lua", false)
+        .or_else(|| check_exist("lua", true))
+        .or_else(|| check_exist("so", false))
+        .or_else(|| check_exist("fnl", false))
+        .or_else(|| check_exist("fnl", true))
 }
