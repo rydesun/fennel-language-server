@@ -216,7 +216,10 @@ impl Literal {
             SyntaxKind::FLOAT => {
                 let token = token.text().to_string();
                 // TODO: support hex and exponent
-                if token.chars().any(|c| !c.is_ascii_digit() && c != '.') {
+                if token.starts_with('.')
+                    || token.ends_with('.')
+                    || token.chars().any(|c| !c.is_ascii_digit() && c != '.')
+                {
                     return None;
                 } else {
                     token
@@ -224,7 +227,7 @@ impl Literal {
             }
             _ => self.cast_string()?,
         };
-        if s.starts_with('/') || s.contains("..") {
+        if s.starts_with('.') || s.ends_with('.') || s.contains("..") {
             return None;
         }
         let path = PathBuf::from(s.replace('.', "/"));
