@@ -59,7 +59,7 @@ pub(crate) fn lsp_range_head() -> Range {
     Range::new(Position::new(0, 0), Position::new(0, 0))
 }
 
-pub(crate) fn find_file(rel: Url, path: PathBuf) -> Option<Url> {
+pub(crate) fn find_file(rel: &Url, path: PathBuf) -> Option<Url> {
     path.to_str()?;
 
     let check_exist = |ext: &str, init: bool| -> Option<Url> {

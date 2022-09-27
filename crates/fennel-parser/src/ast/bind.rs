@@ -115,7 +115,7 @@ pub(crate) trait Binding:
             .map(|t| models::LSymbol {
                 token: t,
                 scope: models::Scope { kind: scope_kind, range: scope_range },
-                value: models::Value { kind: value_kind, range: None },
+                value: models::Value { kind: value_kind.clone(), range: None },
             })
             .collect();
         Some(symbols)

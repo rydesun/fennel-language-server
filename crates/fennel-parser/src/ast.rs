@@ -135,7 +135,12 @@ impl Ast {
         let token_start = token.text_range().start().into();
 
         if let Some(symbol) = self.l_symbol(token_start) {
-            return Some(Definition::Symbol(symbol.clone(), true));
+            if let models::ValueKind::Require(Some(path)) = &symbol.value.kind
+            {
+                return Some(Definition::File(path.clone()));
+            } else {
+                return Some(Definition::Symbol(symbol.clone(), true));
+            }
         }
 
         let r_symbol = self.r_symbol(token_start)?;
@@ -1059,6 +1064,16 @@ mod tests {
         let text = "(require :x.a) :x.a";
         assert_eq!(
             parse(text.chars(), HashSet::new()).definition(11),
+            Some(Definition::File(PathBuf::from("x/a"))),
+        );
+        assert_eq!(parse(text.chars(), HashSet::new()).definition(17), None);
+    }
+
+    #[test]
+    fn definition_file_symbol() {
+        let text = "(local a (require :x.a))";
+        assert_eq!(
+            parse(text.chars(), HashSet::new()).definition(7),
             Some(Definition::File(PathBuf::from("x/a"))),
         );
         assert_eq!(parse(text.chars(), HashSet::new()).definition(17), None);

@@ -71,19 +71,36 @@ impl tower_lsp::LanguageServer for Backend {
         match ast.definition(offset) {
             Some(fennel_parser::Definition::Symbol(symbol, _)) => {
                 let range = lsp_range(&doc, symbol.token.range)?;
-                Ok(Some(GotoDefinitionResponse::Scalar(Location::new(
-                    uri, range,
-                ))))
+                match symbol.value.kind {
+                    models::ValueKind::Require(Some(file)) => {
+                        find_file(&uri, file).map_or_else(
+                            || {
+                                Ok(Some(GotoDefinitionResponse::Scalar(
+                                    Location::new(uri.clone(), range),
+                                )))
+                            },
+                            |new_uri| {
+                                Ok(Some(GotoDefinitionResponse::Array(vec![
+                                    Location::new(uri.clone(), range),
+                                    Location::new(new_uri, lsp_range_head()),
+                                ])))
+                            },
+                        )
+                    }
+                    _ => Ok(Some(GotoDefinitionResponse::Scalar(
+                        Location::new(uri, range),
+                    ))),
+                }
             }
             Some(fennel_parser::Definition::FileSymbol(path, symbol)) => {
                 let range = lsp_range(&doc, symbol.token.range)?;
-                let res = find_file(uri, path).map(|uri| {
+                let res = find_file(&uri, path).map(|uri| {
                     GotoDefinitionResponse::Scalar(Location::new(uri, range))
                 });
                 Ok(res)
             }
             Some(fennel_parser::Definition::File(path)) => {
-                let res = find_file(uri, path).map(|uri| {
+                let res = find_file(&uri, path).map(|uri| {
                     GotoDefinitionResponse::Scalar(Location::new(
                         uri,
                         lsp_range_head(),
@@ -165,7 +182,7 @@ impl tower_lsp::LanguageServer for Backend {
         let range = lsp_range(&doc, symbol.token.range)?;
         let text = symbol.token.text;
         let scope_kind = view::scope_kind(symbol.scope.kind);
-        let value_kind = view::value_kind(symbol.value.kind);
+        let value_kind = view::value_kind(&symbol.value.kind);
 
         let header_text = format!(
             "{} {}{}{}",

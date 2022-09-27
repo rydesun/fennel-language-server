@@ -2,6 +2,7 @@ use core::fmt;
 use std::{
     collections::BTreeMap,
     ops::Bound::{Excluded, Included},
+    path::PathBuf,
 };
 
 use rowan::TextRange;
@@ -39,7 +40,7 @@ pub struct Scope {
     pub range: TextRange,
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct Value {
     pub kind: ValueKind,
     pub range: Option<TextRange>,
@@ -64,7 +65,7 @@ pub enum ScopeKind {
     Catch,
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub enum ValueKind {
     Func,
     Param,
@@ -78,6 +79,7 @@ pub enum ValueKind {
     KvTable,
     Macro,
     Module,
+    Require(Option<PathBuf>),
     FileHandle,
     Unknown,
     Symbol,
@@ -148,6 +150,7 @@ impl fmt::Display for ValueKind {
             Self::Macro => "macro",
             Self::MacroParam => "macro parameter",
             Self::Module => "module",
+            Self::Require(_) => "require",
             Self::FileHandle => "file handle",
             Self::Symbol => "symbol",
             Self::Unknown => "(lsp:unknown)",

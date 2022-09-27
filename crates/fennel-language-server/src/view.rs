@@ -21,7 +21,7 @@ pub(crate) fn scope_kind(kind: models::ScopeKind) -> &'static str {
     }
 }
 
-pub(crate) fn value_kind(kind: models::ValueKind) -> &'static str {
+pub(crate) fn value_kind(kind: &models::ValueKind) -> &'static str {
     match kind {
         models::ValueKind::Nil => "nil",
         models::ValueKind::Number => "number",
@@ -36,6 +36,7 @@ pub(crate) fn value_kind(kind: models::ValueKind) -> &'static str {
         | models::ValueKind::Param
         | models::ValueKind::MacroParam
         | models::ValueKind::Match
+        | models::ValueKind::Require(_)
         | models::ValueKind::Unknown => "",
         models::ValueKind::Symbol => "unknown",
     }

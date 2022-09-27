@@ -2,7 +2,7 @@ use rowan::TextRange;
 
 use crate::{models::ValueKind, syntax::SyntaxKind};
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub enum ErrorKind {
     Unexpected(SyntaxKind),
     UnexpectedVarargs,
@@ -26,7 +26,7 @@ pub enum ErrorKind {
     Depcrated(&'static str, &'static str),
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct Error {
     pub range: TextRange,
     pub kind: ErrorKind,

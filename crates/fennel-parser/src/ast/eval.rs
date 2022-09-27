@@ -18,6 +18,7 @@ pub(crate) enum EvalAst {
     Atom(Atom),
     Literal(Literal),
     List(List),
+    SymbolCall(SymbolCall),
     Operation(Operation),
     RightSymbol(RightSymbol),
     Unknown(SyntaxNode),
@@ -69,6 +70,9 @@ impl rowan::ast::AstNode for EvalAst {
         if let Some(i) = List::cast(syntax_node.clone()) {
             return Some(Self::List(i));
         }
+        if let Some(i) = SymbolCall::cast(syntax_node.clone()) {
+            return Some(Self::SymbolCall(i));
+        }
         if let Some(i) = Operation::cast(syntax_node.clone()) {
             return Some(Self::Operation(i));
         }
@@ -93,6 +97,7 @@ impl rowan::ast::AstNode for EvalAst {
             Self::Atom(n) => n.syntax(),
             Self::Literal(n) => n.syntax(),
             Self::List(n) => n.syntax(),
+            Self::SymbolCall(n) => n.syntax(),
             Self::Operation(n) => n.syntax(),
             Self::RightSymbol(n) => n.syntax(),
             Self::Unknown(n) => n,
@@ -112,6 +117,7 @@ impl EvalAst {
             Self::Atom(n) => n.eval_kind(),
             Self::Literal(n) => n.eval_kind(),
             Self::List(n) => n.eval_kind(),
+            Self::SymbolCall(n) => n.eval_kind(),
             Self::Operation(n) => n.eval_kind(),
             Self::RightSymbol(n) => n.eval_kind(),
             Self::Unknown(_) => None,
@@ -245,13 +251,30 @@ impl List {
             .find(|n| n.kind() == SyntaxKind::N_SUBLIST)?
             .first_child()?;
         match sublist.kind() {
-            SyntaxKind::N_SYMBOL_CALL | SyntaxKind::N_INCLUDE => None,
+            SyntaxKind::N_SYMBOL_CALL => {
+                SymbolCall::cast(sublist)?.eval_kind()
+            }
+            SyntaxKind::N_INCLUDE => None,
             SyntaxKind::N_PARTIAL | SyntaxKind::N_PICK_ARGS => {
                 Some(models::ValueKind::Func)
             }
             SyntaxKind::N_ICOLLECT => Some(models::ValueKind::SeqTable),
             SyntaxKind::N_COLLECT => Some(models::ValueKind::KvTable),
             _ => Some(EvalAst::cast(sublist)?.eval_kind()),
+        }
+    }
+}
+
+impl SymbolCall {
+    pub(crate) fn eval_kind(&self) -> Option<models::ValueKind> {
+        if self.is_require() {
+            Some(
+                self.require().map_or(models::ValueKind::Require(None), |p| {
+                    models::ValueKind::Require(Some(p))
+                }),
+            )
+        } else {
+            None
         }
     }
 }

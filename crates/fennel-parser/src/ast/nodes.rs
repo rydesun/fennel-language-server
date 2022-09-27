@@ -371,11 +371,11 @@ impl SymbolCall {
         self.call_name().map(|name| name == "require").unwrap_or(false)
     }
 
-    #[allow(unused)]
     pub(crate) fn require(&self) -> Option<PathBuf> {
         if self.is_require() {
-            let first_sexp = self.syntax().children().nth(1)?;
-            Literal::cast(first_sexp).and_then(|n| n.cast_path())
+            let deepest_node =
+                self.syntax().children().nth(1)?.first_token()?.parent()?;
+            get_ancestor::<Literal>(&deepest_node)?.cast_path()
         } else {
             None
         }
