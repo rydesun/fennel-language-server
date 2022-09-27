@@ -4,6 +4,7 @@ mod view;
 
 use std::{
     collections::{HashMap, HashSet},
+    path::PathBuf,
     sync::{Arc, RwLock},
 };
 
@@ -22,6 +23,7 @@ struct Backend {
     config: Arc<RwLock<config::Configuration>>,
     doc_map: DashMap<Url, Rope>,
     ast_map: DashMap<Url, Ast>,
+    workspace_map: DashMap<Url, String>,
     // publish those before saving
     on_save_or_open_errors: DashMap<Url, Vec<fennel_parser::Error>>,
 }
@@ -30,8 +32,20 @@ struct Backend {
 impl tower_lsp::LanguageServer for Backend {
     async fn initialize(
         &self,
-        _: InitializeParams,
+        params: InitializeParams,
     ) -> Result<InitializeResult> {
+        if let Some(folders) = params.workspace_folders {
+            folders.into_iter().for_each(|folder| {
+                let mut uri = folder.uri;
+                if let Ok(mut segments) = uri.path_segments_mut() {
+                    segments.push("/");
+                } else {
+                    return;
+                }
+                self.workspace_map.insert(uri.clone(), folder.name);
+            });
+        }
+
         Ok(InitializeResult {
             server_info: Some(ServerInfo {
                 name: env!("CARGO_PKG_NAME").into(),
@@ -41,6 +55,15 @@ impl tower_lsp::LanguageServer for Backend {
                 text_document_sync: Some(TextDocumentSyncCapability::Kind(
                     TextDocumentSyncKind::INCREMENTAL,
                 )),
+                workspace: Some(WorkspaceServerCapabilities {
+                    workspace_folders: Some(
+                        WorkspaceFoldersServerCapabilities {
+                            supported: Some(true),
+                            change_notifications: None,
+                        },
+                    ),
+                    file_operations: None,
+                }),
                 definition_provider: Some(OneOf::Left(true)),
                 references_provider: Some(OneOf::Left(true)),
                 rename_provider: Some(OneOf::Left(true)),
@@ -73,7 +96,7 @@ impl tower_lsp::LanguageServer for Backend {
                 let range = lsp_range(&doc, symbol.token.range)?;
                 match symbol.value.kind {
                     models::ValueKind::Require(Some(file)) => {
-                        find_file(&uri, file).map_or_else(
+                        self.find_file(&uri, file).map_or_else(
                             || {
                                 Ok(Some(GotoDefinitionResponse::Scalar(
                                     Location::new(uri.clone(), range),
@@ -94,13 +117,13 @@ impl tower_lsp::LanguageServer for Backend {
             }
             Some(fennel_parser::Definition::FileSymbol(path, symbol)) => {
                 let range = lsp_range(&doc, symbol.token.range)?;
-                let res = find_file(&uri, path).map(|uri| {
+                let res = self.find_file(&uri, path).map(|uri| {
                     GotoDefinitionResponse::Scalar(Location::new(uri, range))
                 });
                 Ok(res)
             }
             Some(fennel_parser::Definition::File(path)) => {
-                let res = find_file(&uri, path).map(|uri| {
+                let res = self.find_file(&uri, path).map(|uri| {
                     GotoDefinitionResponse::Scalar(Location::new(
                         uri,
                         lsp_range_head(),
@@ -395,6 +418,18 @@ impl tower_lsp::LanguageServer for Backend {
         .await;
     }
 
+    async fn did_change_workspace_folders(
+        &self,
+        params: DidChangeWorkspaceFoldersParams,
+    ) {
+        params.event.added.iter().for_each(|r| {
+            self.workspace_map.insert(r.uri.clone(), r.name.clone());
+        });
+        params.event.removed.iter().for_each(|r| {
+            self.workspace_map.remove(&r.uri);
+        });
+    }
+
     async fn did_change_configuration(
         &self,
         params: DidChangeConfigurationParams,
@@ -469,6 +504,43 @@ impl Backend {
             .publish_diagnostics(uri, diagnostics.collect(), version)
             .await;
     }
+
+    fn find_file(&self, rel: &Url, path: PathBuf) -> Option<Url> {
+        path.to_str()?;
+
+        let check_exist = |rel: &Url, ext: &str, init: bool| -> Option<Url> {
+            let path = if init { path.join("init") } else { path.clone() };
+            if let Ok(url) =
+                rel.join(path.with_extension(ext).to_str().unwrap())
+            {
+                if std::fs::metadata(url.path())
+                    .map(|m| m.is_file())
+                    .unwrap_or(false)
+                {
+                    return Some(url);
+                }
+            }
+            None
+        };
+
+        let workspace_file = self.workspace_map.iter().find_map(|ref r| {
+            let uri = r.key();
+            let uri_lua = uri.join("lua/").unwrap();
+            let uri_fnl = uri.join("fnl/").unwrap();
+            check_exist(&uri_lua, "lua", false)
+                .or_else(|| check_exist(&uri_lua, "lua", true))
+                .or_else(|| check_exist(&uri_fnl, "fnl", false))
+                .or_else(|| check_exist(&uri_fnl, "fnl", true))
+        });
+
+        workspace_file.or_else(|| {
+            check_exist(rel, "lua", false)
+                .or_else(|| check_exist(rel, "lua", true))
+                .or_else(|| check_exist(rel, "so", false))
+                .or_else(|| check_exist(rel, "fnl", false))
+                .or_else(|| check_exist(rel, "fnl", true))
+        })
+    }
 }
 
 fn main() {
@@ -479,6 +551,7 @@ fn main() {
         client,
         doc_map: DashMap::new(),
         ast_map: DashMap::new(),
+        workspace_map: DashMap::new(),
         on_save_or_open_errors: DashMap::new(),
         config: Arc::new(RwLock::new(config::Configuration::default())),
     })

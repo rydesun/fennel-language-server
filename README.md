@@ -37,8 +37,8 @@ require 'lspconfig.configs'.fennel_language_server = {
     -- replace it with true path
     cmd = {'/PATH/TO/BINFILE'},
     filetypes = {'fennel'},
-    -- nowadays only support single file mode
     single_file_support = true,
+    root_dir = lspconfig.util.root_pattern("lua", "fnl", ".git"),
     settings = {
       fennel = {
         diagnostics = {
