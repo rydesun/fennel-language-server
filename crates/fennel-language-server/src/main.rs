@@ -434,25 +434,35 @@ impl tower_lsp::LanguageServer for Backend {
         &self,
         params: DidChangeConfigurationParams,
     ) {
-        if let Ok(config) =
-            <config::Configuration as serde::Deserialize>::deserialize(
-                params.settings,
-            )
-        {
-            *self.config.write().unwrap() = config.clone();
-            for mut r in self.ast_map.iter_mut() {
-                let ast = r.value_mut();
-                ast.update_globals(config.fennel.diagnostics.globals.clone());
-                let uri = r.key();
-                let doc = self.doc_map.get(uri).unwrap();
-                self.publish_diagnostics(
-                    &doc,
-                    uri.clone(),
-                    r.value(),
-                    None,
-                    false,
-                )
-                .await;
+        match <config::Configuration as serde::Deserialize>::deserialize(
+            params.settings,
+        ) {
+            Ok(config) => {
+                *self.config.write().unwrap() = config.clone();
+                for mut r in self.ast_map.iter_mut() {
+                    let ast = r.value_mut();
+                    ast.update_globals(
+                        config.fennel.diagnostics.globals.clone(),
+                    );
+                    let uri = r.key();
+                    let doc = self.doc_map.get(uri).unwrap();
+                    self.publish_diagnostics(
+                        &doc,
+                        uri.clone(),
+                        r.value(),
+                        None,
+                        false,
+                    )
+                    .await;
+                }
+            }
+            Err(e) => {
+                self.client
+                    .log_message(
+                        MessageType::ERROR,
+                        format!("Invalid config: {}", e),
+                    )
+                    .await;
             }
         }
     }
@@ -523,6 +533,16 @@ impl Backend {
             None
         };
 
+        let library = &self.config.read().unwrap().fennel.workspace.library;
+        let library_file = library.iter().find_map(|uri| {
+            let uri_fnl = uri.0.join("fnl/").unwrap();
+            let uri_lua = uri.0.join("lua/").unwrap();
+            check_exist(&uri_lua, "lua", false)
+                .or_else(|| check_exist(&uri_lua, "lua", true))
+                .or_else(|| check_exist(&uri_fnl, "fnl", false))
+                .or_else(|| check_exist(&uri_fnl, "fnl", true))
+        });
+
         let workspace_file = self.workspace_map.iter().find_map(|ref r| {
             let uri = r.key();
             let uri_fnl = uri.join("fnl/").unwrap();
@@ -530,7 +550,7 @@ impl Backend {
                 .or_else(|| check_exist(&uri_fnl, "fnl", true))
         });
 
-        workspace_file.or_else(|| {
+        workspace_file.or(library_file).or_else(|| {
             check_exist(rel, "lua", false)
                 .or_else(|| check_exist(rel, "lua", true))
                 .or_else(|| check_exist(rel, "so", false))
