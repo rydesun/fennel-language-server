@@ -525,11 +525,8 @@ impl Backend {
 
         let workspace_file = self.workspace_map.iter().find_map(|ref r| {
             let uri = r.key();
-            let uri_lua = uri.join("lua/").unwrap();
             let uri_fnl = uri.join("fnl/").unwrap();
-            check_exist(&uri_lua, "lua", false)
-                .or_else(|| check_exist(&uri_lua, "lua", true))
-                .or_else(|| check_exist(&uri_fnl, "fnl", false))
+            check_exist(&uri_fnl, "fnl", false)
                 .or_else(|| check_exist(&uri_fnl, "fnl", true))
         });
 
