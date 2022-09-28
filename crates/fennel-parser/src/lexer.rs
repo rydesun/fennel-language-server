@@ -222,7 +222,7 @@ pub(crate) fn validate_symbol(symbol: &str) -> bool {
                 return false;
             }
         }
-        if lexer.next().is_some() {
+        if lexer.next().unwrap().kind != SyntaxKind::END {
             return false;
         }
         return !Vec::from(include!("static/reserved"))
@@ -370,5 +370,12 @@ mod tests {
             Token::new(SyntaxKind::COMMENT, "; this is comment)\n", 13..32),
             Token::new(SyntaxKind::R_PAREN, ")", 33..34),
         ]);
+    }
+
+    #[test]
+    fn validate() {
+        assert!(validate_symbol("abc"));
+        assert!(!validate_symbol("a.bc"));
+        assert!(!validate_symbol("a:bc"));
     }
 }
