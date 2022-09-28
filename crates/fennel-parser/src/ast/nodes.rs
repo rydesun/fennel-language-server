@@ -109,6 +109,13 @@ impl Root {
             .map(|kv_table| kv_table.cast_hashmap())
     }
 
+    pub(crate) fn resources(&self) -> impl Iterator<Item = PathBuf> {
+        self.syntax()
+            .descendants()
+            .filter_map(SymbolCall::cast)
+            .filter_map(|n| n.require())
+    }
+
     pub(crate) fn provide_errors(&self) -> impl Iterator<Item = Error> {
         self.syntax()
             .descendants()

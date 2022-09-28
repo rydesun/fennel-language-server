@@ -30,6 +30,7 @@ pub struct Ast {
     pub globals: HashSet<String>,
     l_symbols: models::LSymbols,
     r_symbols: models::RSymbols,
+    pub resources: Vec<PathBuf>,
 
     pub parser_errors: Vec<Error>,
     pub globals_errors: Vec<Error>,
@@ -68,10 +69,12 @@ impl Ast {
             lua_globals,
             lua_modules,
             globals: user_globals,
+            resources: vec![],
         };
 
         ast.update_symbols();
         ast.update_symbols_follow();
+        ast.update_resources();
         ast.update_definition_errors();
 
         let mut other_errors: Vec<Error> = root
@@ -443,6 +446,12 @@ impl Ast {
                 v.value.kind = models::ValueKind::Module;
             }
         })
+    }
+
+    fn update_resources(&mut self) {
+        let root =
+            Root::cast(SyntaxNode::new_root(self.root.clone())).unwrap();
+        self.resources = root.resources().collect()
     }
 
     fn update_definition_errors(&mut self) {
