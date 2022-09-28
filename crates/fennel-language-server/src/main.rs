@@ -418,6 +418,11 @@ impl tower_lsp::LanguageServer for Backend {
         .await;
     }
 
+    async fn did_close(&self, params: DidCloseTextDocumentParams) {
+        let uri = params.text_document.uri;
+        self.free_doc(&uri);
+    }
+
     async fn did_change_workspace_folders(
         &self,
         params: DidChangeWorkspaceFoldersParams,
@@ -513,6 +518,12 @@ impl Backend {
         self.client
             .publish_diagnostics(uri, diagnostics.collect(), version)
             .await;
+    }
+
+    fn free_doc(&self, uri: &Url) {
+        self.doc_map.remove(uri);
+        self.ast_map.remove(uri);
+        self.on_save_or_open_errors.remove(uri);
     }
 
     fn find_file(&self, rel: &Url, path: PathBuf) -> Option<Url> {
