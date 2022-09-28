@@ -508,7 +508,7 @@ impl Backend {
                     range,
                     Some(severity),
                     None,
-                    None,
+                    Some("Fennel Diagnostics".into()),
                     message,
                     None,
                     None,
