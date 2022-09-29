@@ -235,9 +235,10 @@ impl Literal {
             }
             _ => self.cast_string()?.0,
         };
-        if s.starts_with('.') || s.ends_with('.') || s.contains("..") {
+        if s.ends_with('.') || s.ends_with('/') {
             return None;
         }
+        let s = s.trim_start_matches(|c| c == '.' || c == '/');
         let path = PathBuf::from(s.replace('.', "/"));
         Some(path)
     }
