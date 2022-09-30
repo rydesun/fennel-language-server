@@ -6,4 +6,4 @@ edition = "2021"
 [dependencies]
 once_cell = "1.15.0"
 regex = { version = "1.6.0", default-features = false, features = ["std"] }
-rowan = "0.15.8"
+rowan = "0.15.10"
