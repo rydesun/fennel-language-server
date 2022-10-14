@@ -1,3 +1,4 @@
+mod cli;
 mod config;
 mod helper;
 mod view;
@@ -8,10 +9,15 @@ use std::{
     sync::{Arc, RwLock},
 };
 
+use clap::Parser;
 use dashmap::DashMap;
 use fennel_parser::{models, Ast};
 use helper::*;
 use ropey::Rope;
+use tokio::{
+    io::{AsyncRead, AsyncWrite},
+    net::TcpListener,
+};
 use tower_lsp::{
     jsonrpc::{Error, Result},
     lsp_types::*,
@@ -24,7 +30,7 @@ struct Backend {
     doc_map: DashMap<Url, Rope>,
     ast_map: DashMap<Url, Ast>,
     workspace_map: DashMap<Url, String>,
-    // publish those before saving
+    // publish those after saving
     on_save_or_open_errors: DashMap<Url, Vec<fennel_parser::Error>>,
 }
 
@@ -572,8 +578,20 @@ impl Backend {
 }
 
 fn main() {
-    let stdin = tokio::io::stdin();
-    let stdout = tokio::io::stdout();
+    let cli = cli::Cli::parse();
+    let (read, write) = match &cli.cmd {
+        Some(cli::Command::Lsp { cmd: cli::LspCommand::Stdio }) | None => {
+            stdio()
+        }
+        Some(cli::Command::Lsp { cmd: cli::LspCommand::Tcp { address } }) => {
+            // Only one connection accepted
+            tokio::runtime::Builder::new_current_thread()
+                .enable_all()
+                .build()
+                .unwrap()
+                .block_on(tcp_listen(address))
+        }
+    };
 
     let (service, socket) = tower_lsp::LspService::build(|client| Backend {
         client,
@@ -589,6 +607,20 @@ fn main() {
         .build()
         .unwrap()
         .block_on(async {
-            tower_lsp::Server::new(stdin, stdout, socket).serve(service).await;
+            tower_lsp::Server::new(read, write, socket).serve(service).await;
         })
+}
+
+fn stdio() -> (Box<dyn AsyncRead + Unpin>, Box<dyn AsyncWrite + Unpin>) {
+    let (read, write) = (tokio::io::stdin(), tokio::io::stdout());
+    (Box::new(read), Box::new(write))
+}
+
+async fn tcp_listen(
+    address: &str,
+) -> (Box<dyn AsyncRead + Unpin>, Box<dyn AsyncWrite + Unpin>) {
+    let listener = TcpListener::bind(address).await.unwrap();
+    let (stream, _) = listener.accept().await.unwrap();
+    let (read, write) = tokio::io::split(stream);
+    (Box::new(read), Box::new(write))
 }
