@@ -15,6 +15,7 @@
 "catch",
 "collect",
 "icollect",
+"fcollect",
 "do",
 "doto",
 "each",

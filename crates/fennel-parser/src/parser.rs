@@ -274,6 +274,7 @@ impl<'p> Parser<'p> {
             { N_SUBLIST ::= (N_FOR) },
             { N_SUBLIST ::= (N_COLLECT) },
             { N_SUBLIST ::= (N_ICOLLECT) },
+            { N_SUBLIST ::= (N_FCOLLECT) },
             { N_SUBLIST ::= (N_ACCUMULATE) },
             { N_SUBLIST ::= (N_WHILE) },
             { N_SUBLIST ::= (N_DO) },
@@ -528,6 +529,16 @@ impl<'p> Parser<'p> {
                                    (N_ITERATION ++ TokenSet::ITERATOR, TokenSet::COLLECT),
                                    (N_ITERATOR),
                                    (N_COLLECT_CLAUSE ? TokenSet::R_BRACKET),
+                                   (R_BRACKET) },
+
+            { N_FCOLLECT ::= (KEYWORD_FCOLLECT),
+                             (N_FCOLLECT_TABLE),
+                             (N_SEXP) },
+
+            { N_FCOLLECT_TABLE ::= (L_BRACKET),
+                                   (N_ITERATION_VALUE),
+                                   (N_RANGE),
+                                   (N_UNTIL_CLAUSE ? TokenSet::R_BRACKET),
                                    (R_BRACKET) },
 
             { N_COLLECT ::= (KEYWORD_COLLECT),

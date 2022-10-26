@@ -9,7 +9,7 @@ use crate::{
 ast_assoc!(
     BindingListAst, [
         // Bindings live in the local scope.
-        Let, WithOpen, Each, For, Icollect, Collect, Accumulate,
+        Let, WithOpen, Each, For, Fcollect, Icollect, Collect, Accumulate,
         // Parameters live in the local scope.
         // Function name is extended to the outer scope.
         FuncAst, Macros, Macro,
@@ -286,6 +286,21 @@ impl Binding for Icollect {
     }
 }
 
+impl Binding for Fcollect {
+    fn bindings(&self) -> Option<Vec<models::LSymbol>> {
+        self._bindings(
+            self.target_child_node(
+                SyntaxKind::N_FCOLLECT_TABLE,
+                SyntaxKind::N_ITERATION_VALUE,
+            )?,
+            models::ScopeKind::IterValue,
+            ScopeExtend::Current,
+            Some(models::ValueKind::Number),
+            models::ValueKind::Unknown,
+        )
+    }
+}
+
 impl Binding for Collect {
     fn bindings(&self) -> Option<Vec<models::LSymbol>> {
         let nodes = self.target_child_nodes(
@@ -503,6 +518,7 @@ impl Binding for BindingListAst {
             Self::Each(n) => n.bindings(),
             Self::For(n) => n.bindings(),
             Self::Icollect(n) => n.bindings(),
+            Self::Fcollect(n) => n.bindings(),
             Self::Collect(n) => n.bindings(),
             Self::Accumulate(n) => n.bindings(),
             Self::Macro(n) => n.bindings(),

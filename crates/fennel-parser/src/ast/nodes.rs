@@ -52,6 +52,7 @@ ast_node!(Thread, N_THREAD);
 ast_node!(Doto, N_DOTO);
 ast_node!(When, N_WHEN);
 ast_node!(Icollect, N_ICOLLECT);
+ast_node!(Fcollect, N_FCOLLECT);
 ast_node!(Collect, N_COLLECT);
 ast_node!(Accumulate, N_ACCUMULATE);
 ast_node!(ImportMacros, N_IMPORT_MACROS);
