@@ -569,7 +569,7 @@ impl Ast {
     fn r_symbol(&self, offset: u32) -> Option<&models::RSymbol> {
         self.r_symbols
             .iter()
-            .find(|s| s.token.range.contains_inclusive(TextSize::from(offset)))
+            .find(|s| s.token.range.contains(TextSize::from(offset)))
     }
 }
 
@@ -1094,6 +1094,17 @@ mod tests {
     fn definition_undefined() {
         let text = "(local z (fn x [] (print z)))";
         assert_eq!(definition(text, 25).map(|s| s.token.range), None);
+    }
+
+    #[test]
+    fn definition_empty() {
+        let text = "(local z 1)(print z)";
+        assert_eq!(
+            definition(text, 18).map(|s| s.token.range),
+            Some(TextRange::new(7.into(), 8.into()))
+        );
+        assert_eq!(definition(text, 19).map(|s| s.token.range), None);
+        assert_eq!(definition(text, 20).map(|s| s.token.range), None);
     }
 
     #[test]
