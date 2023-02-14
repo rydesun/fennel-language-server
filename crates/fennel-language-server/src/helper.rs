@@ -29,7 +29,9 @@ pub(crate) fn position_to_char_idx(
     let start_char = rope
         .try_line_to_char(position.line as usize)
         .map_err(|_| Error::invalid_request())?;
-    Ok(start_char + position.character as usize)
+    let utf16_cu =
+        rope.char_to_utf16_cu(start_char) + position.character as usize;
+    Ok(rope.utf16_cu_to_char(utf16_cu))
 }
 
 pub(crate) fn position_to_byte_offset(
@@ -39,7 +41,10 @@ pub(crate) fn position_to_byte_offset(
     let start_char = rope
         .try_line_to_char(position.line as usize)
         .map_err(|_| Error::invalid_request())?;
-    Ok(rope.char_to_byte(start_char + position.character as usize) as u32)
+    let utf16_cu =
+        rope.char_to_utf16_cu(start_char) + position.character as usize;
+    let char = rope.utf16_cu_to_char(utf16_cu);
+    Ok(rope.char_to_byte(char) as u32)
 }
 
 pub(crate) fn byte_offset_to_position(
@@ -49,7 +54,8 @@ pub(crate) fn byte_offset_to_position(
     let line =
         rope.try_byte_to_line(offset).map_err(|_| Error::invalid_request())?;
     let start_char = rope.line_to_char(line);
-    let column = rope.byte_to_char(offset) - start_char;
+    let utf16_cu = rope.char_to_utf16_cu(start_char);
+    let column = rope.char_to_utf16_cu(rope.byte_to_char(offset)) - utf16_cu;
     Ok(Position::new(line as u32, column as u32))
 }
 
