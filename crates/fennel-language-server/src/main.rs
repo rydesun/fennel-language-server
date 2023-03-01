@@ -42,13 +42,7 @@ impl tower_lsp::LanguageServer for Backend {
     ) -> Result<InitializeResult> {
         if let Some(folders) = params.workspace_folders {
             folders.into_iter().for_each(|folder| {
-                let mut uri = folder.uri;
-                if let Ok(mut segments) = uri.path_segments_mut() {
-                    segments.push("/");
-                } else {
-                    return;
-                }
-                self.workspace_map.insert(uri.clone(), folder.name);
+                self.workspace_map.insert(folder.uri, folder.name);
             });
         }
 
@@ -561,7 +555,12 @@ impl Backend {
         });
 
         let workspace_file = self.workspace_map.iter().find_map(|ref r| {
-            let uri = r.key();
+            let mut uri = r.key().clone();
+            uri.path_segments_mut().ok()?.push("");
+            if !rel.path().starts_with(uri.path()) {
+                return None;
+            };
+
             let uri_fnl = uri.join("fnl/").unwrap();
             check_exist(&uri_fnl, "fnl", false)
                 .or_else(|| check_exist(&uri_fnl, "fnl", true))
