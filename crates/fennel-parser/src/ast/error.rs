@@ -224,7 +224,7 @@ impl RequireMacros {
     pub(crate) fn depcrated(&self) -> Error {
         Error::new(
             self.syntax().first_token().unwrap().text_range(),
-            Depcrated("0.4.0", "import-macros"),
+            Deprecated("0.4.0", "import-macros"),
         )
     }
 }
@@ -233,7 +233,7 @@ impl PickArgs {
     pub(crate) fn depcrated(&self) -> Error {
         Error::new(
             self.syntax().first_token().unwrap().text_range(),
-            Depcrated("0.10.0", "pick-values"),
+            Deprecated("0.10.0", "pick-values"),
         )
     }
 }
@@ -242,7 +242,7 @@ impl Global {
     pub(crate) fn depcrated(&self) -> Error {
         Error::new(
             self.syntax().first_token().unwrap().text_range(),
-            Depcrated("1.1.0", "_G table"),
+            Deprecated("1.1.0", "_G table"),
         )
     }
 }
@@ -251,7 +251,7 @@ impl IntoClause {
     pub(crate) fn depcrated(&self) -> Option<Error> {
         let token = self.syntax().first_token().unwrap();
         if token.text().starts_with(':') {
-            Some(Error::new(token.text_range(), Depcrated("1.2.0", "&into")))
+            Some(Error::new(token.text_range(), Deprecated("1.2.0", "&into")))
         } else {
             None
         }
@@ -262,7 +262,7 @@ impl UntilClause {
     pub(crate) fn depcrated(&self) -> Option<Error> {
         let token = self.syntax().first_token().unwrap();
         if token.text().starts_with(':') {
-            Some(Error::new(token.text_range(), Depcrated("1.2.0", "&until")))
+            Some(Error::new(token.text_range(), Deprecated("1.2.0", "&until")))
         } else {
             None
         }

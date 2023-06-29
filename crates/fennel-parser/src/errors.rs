@@ -23,7 +23,7 @@ pub enum ErrorKind {
     DirectCall(ValueKind),
     MultiCatch,
     CatchNotLast,
-    Depcrated(&'static str, &'static str),
+    Deprecated(&'static str, &'static str),
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]

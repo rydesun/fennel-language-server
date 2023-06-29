@@ -149,7 +149,7 @@ pub(crate) fn error(e: ErrorKind) -> (String, DiagnosticSeverity) {
             "Catch clause must be at the end".into(),
             DiagnosticSeverity::ERROR,
         ),
-        ErrorKind::Depcrated(version, recommendation) => (
+        ErrorKind::Deprecated(version, recommendation) => (
             format!(
                 "Deprecated in version `{}`. Use `{}` instead",
                 version, recommendation
