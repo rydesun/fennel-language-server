@@ -13,6 +13,7 @@
 "include",
 "accumulate",
 "catch",
+"comment",
 "collect",
 "icollect",
 "fcollect",

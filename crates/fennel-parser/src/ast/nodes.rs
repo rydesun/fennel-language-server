@@ -67,6 +67,7 @@ ast_node!(Macrodebug, N_MACRODEBUG);
 ast_node!(IntoClause, N_INTO_CLAUSE);
 ast_node!(UntilClause, N_UNTIL_CLAUSE);
 ast_node!(MacroQuote, N_MACRO_QUOTE);
+ast_node!(CommentForm, N_COMMENT_FORM);
 
 ast_assoc!(BindingSymbol, [LeftSymbol, LeftRightSymbol]);
 

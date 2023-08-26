@@ -304,7 +304,19 @@ pub(crate) enum SuppressErrorKind {
     Unexpected(SyntaxKind),
 }
 
-ast_assoc!(Suppress, [MacroQuote, FuncAst]);
+ast_assoc!(Suppress, [MacroQuote, FuncAst, CommentForm]);
+
+impl CommentForm {
+    pub(crate) fn suppress(&self) -> (TextRange, Vec<SuppressErrorKind>) {
+        let range = self.syntax().text_range();
+        (range, vec![
+            SuppressErrorKind::Unused,
+            SuppressErrorKind::Unterminated,
+            SuppressErrorKind::Undefined,
+            SuppressErrorKind::AllUnexpected,
+        ])
+    }
+}
 
 impl MacroQuote {
     pub(crate) fn suppress(&self) -> (TextRange, Vec<SuppressErrorKind>) {
@@ -350,6 +362,7 @@ impl Suppress {
         match self {
             Self::MacroQuote(n) => vec![n.suppress()],
             Self::FuncAst(n) => n.suppress().unwrap_or_default(),
+            Self::CommentForm(n) => vec![n.suppress()],
         }
     }
 }

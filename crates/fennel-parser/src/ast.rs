@@ -1218,4 +1218,11 @@ mod tests {
             }
         }
     }
+
+    #[test]
+    fn comment_form() {
+        let text = "(comment (fn f [] some-unknown-symbol))";
+        let ast = parse(text.chars(), HashSet::new());
+        assert_eq!(ast.errors().collect::<Vec<_>>(), Vec::<&Error>::new());
+    }
 }
