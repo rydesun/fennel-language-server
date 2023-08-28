@@ -249,6 +249,7 @@ impl<'p> Parser<'p> {
                             (N_ARGS ? TokenSet::R_PAREN) },
             { N_SUBLIST ::= (N_SYMBOL_CALL),
                             (N_ARGS ? TokenSet::R_PAREN) },
+            { N_SUBLIST ::= (N_COMMENT_FORM) },
             { N_SUBLIST ::= (N_VAR) },
             { N_SUBLIST ::= (N_SET) },
             { N_SUBLIST ::= (N_TSET) },
@@ -469,6 +470,9 @@ impl<'p> Parser<'p> {
 
             { N_NUMBER ::= (FLOAT) },
             { N_NUMBER ::= (INTEGER) },
+
+            { N_COMMENT_FORM ::= (KEYWORD_COMMENT),
+                       (N_BODY) },
 
             { N_DO ::= (KEYWORD_DO),
                        (N_BODY ? TokenSet::R_PAREN) },

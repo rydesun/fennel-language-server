@@ -117,6 +117,7 @@ pub(crate) fn first_set(syntax: SyntaxKind, cur: SyntaxKind) -> bool {
         N_ACCUMULATE => [KEYWORD_ACCUMULATE].contains(&cur),
         N_DO => [KEYWORD_DO].contains(&cur),
         N_WHILE => [KEYWORD_WHILE].contains(&cur),
+        N_COMMENT_FORM => [KEYWORD_COMMENT].contains(&cur),
 
         N_OPERATION => [OPERATOR, KEYWORD_OR, COLON, LENGTH].contains(&cur),
 

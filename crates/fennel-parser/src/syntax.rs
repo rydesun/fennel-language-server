@@ -70,6 +70,7 @@ pub enum SyntaxKind {
     KEYWORD_WHERE,
     KEYWORD_WHILE,
     KEYWORD_WITH_OPEN,
+    KEYWORD_COMMENT,
 
     COMMENT,
     WHITESPACE,
@@ -209,6 +210,7 @@ pub enum SyntaxKind {
     N_CATCH,
     N_CATCH_LIST,
     N_VARARG,
+    N_COMMENT_FORM,
 
     END,
     ROOT,
@@ -405,6 +407,7 @@ pub(crate) const TOEKN: &[(&str, SyntaxKind)] = &[
     ("where", SyntaxKind::KEYWORD_WHERE),
     ("while", SyntaxKind::KEYWORD_WHILE),
     ("with-open", SyntaxKind::KEYWORD_WITH_OPEN),
+    ("comment", SyntaxKind::KEYWORD_COMMENT),
 ];
 
 impl From<u16> for SyntaxKind {
