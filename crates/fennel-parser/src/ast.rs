@@ -1220,9 +1220,29 @@ mod tests {
     }
 
     #[test]
-    fn comment_form() {
+    fn comment_form_should_suppress_errors() {
         let text = "(comment (fn f [] some-unknown-symbol))";
         let ast = parse(text.chars(), HashSet::new());
         assert_eq!(ast.errors().collect::<Vec<_>>(), Vec::<&Error>::new());
+    }
+
+    #[test]
+    fn comment_form_should_allow_keywords() {
+        let text = "(comment fn and comment are keywords)";
+        let ast = parse(text.chars(), HashSet::new());
+        assert_eq!(ast.errors().collect::<Vec<_>>(), Vec::<&Error>::new());
+    }
+
+    #[test]
+    fn comment_form_should_introduce_scope() {
+        let text = r#"
+        (comment (fn f [] some-unknown-symbol))
+        (f)
+        "#;
+        let ast = parse(text.chars(), HashSet::new());
+        assert_eq!(
+            ast.errors().map(|e| e.kind.clone()).collect::<Vec<_>>(),
+            vec![ErrorKind::Undefined]
+        );
     }
 }

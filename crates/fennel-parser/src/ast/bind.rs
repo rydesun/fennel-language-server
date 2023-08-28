@@ -728,6 +728,7 @@ ast_assoc!(
         ImportMacros,
         Match, MatchTry, Catch,
         Macro, Macros,
+        CommentForm,
     ]
 );
 
